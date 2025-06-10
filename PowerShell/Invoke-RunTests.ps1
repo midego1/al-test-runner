@@ -23,7 +23,7 @@ function Invoke-RunTests {
         [string]$ExtensionName,
         [Parameter(Mandatory = $false)]
         [switch]$GetCodeCoverage,
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [int]$TestRunnerCodeunitId = 130450,
         [Parameter(Mandatory = $false)]
         $DisabledTests,
@@ -87,89 +87,66 @@ function Invoke-RunTests {
 
     $Message += ", culture $Culture"
 
-    [int]$AttemptNo = 1
-    [bool]$BreakTestLoop = $false
-    
-    while (!$BreakTestLoop) {
-        try {
-            Write-Host $Message -ForegroundColor Green
-            $refreshToken = Get-ValueFromALTestRunnerConfig -KeyName 'refreshToken'
-            if ($null -ne $refreshToken) {
-                $authContext = New-BcAuthContext -refreshToken $refreshToken
-                $Params.Add('bcAuthContext', $authContext)
-            }
-            Invoke-CommandOnDockerHost { Param($Params) Run-TestsInBCContainer @Params -detailed -Verbose } -Parameters $Params
+    Write-Host $Message -ForegroundColor Green
+    $refreshToken = Get-ValueFromALTestRunnerConfig -KeyName 'refreshToken'
+    if ($null -ne $refreshToken) {
+        $authContext = New-BcAuthContext -refreshToken $refreshToken
+        $Params.Add('bcAuthContext', $authContext)
+    }
+    Invoke-CommandOnDockerHost { Param($Params) Run-TestsInBCContainer @Params -detailed -Verbose } -Parameters $Params
             
-            if (Get-DockerHostIsRemote) {
-                $Session = Get-DockerHostSession
-                Invoke-CommandOnDockerHost {
-                    Param($ContainerResultFile, $ResultId)
-                    if (Test-Path $ContainerResultFile) {
-                        if (-not (Test-Path 'C:\BCContainerTests\')) {
-                            New-Item -Path 'C:\' -Name BCContainerTests -ItemType Directory -Force | Out-Null
-                        }
-
-                        Copy-FileFromBCContainer -containerName $ContainerName -containerPath $ContainerResultFile -localPath (Join-Path 'C:\BCContainerTests' $ResultId)
-
-                    }
-                    else {
-                        throw 'Tests have not been run'
-                    }
-                } -Parameters ($ContainerResultFile, $ResultId)
-
-                if ($GetCodeCoverage.IsPreset) {
-                    Get-CodeCoverage -LaunchConfig $LaunchConfig
+    if (Get-DockerHostIsRemote) {
+        $Session = Get-DockerHostSession
+        Invoke-CommandOnDockerHost {
+            Param($ContainerResultFile, $ResultId)
+            if (Test-Path $ContainerResultFile) {
+                if (-not (Test-Path 'C:\BCContainerTests\')) {
+                    New-Item -Path 'C:\' -Name BCContainerTests -ItemType Directory -Force | Out-Null
                 }
 
-                if ($GetPerformanceProfile.IsPresent) {
-                    Get-PerformanceProfile -LaunchConfig $LaunchConfig
-                }
+                Copy-FileFromBCContainer -containerName $ContainerName -containerPath $ContainerResultFile -localPath (Join-Path 'C:\BCContainerTests' $ResultId)
 
-                Write-Host "Copy C:\BCContainerTests\$ResultId to $LastResultFile"
-                Copy-Item -FromSession $Session -Path "C:\BCContainerTests\$ResultId" -Destination $ResultFile
-                Copy-Item -Path $ResultFile -Destination $LastResultFile
             }
             else {
-                if (Test-Path $ContainerResultFile) {
-                    if ($GetCodeCoverage.IsPresent) {
-                        Get-CodeCoverage -LaunchConfig $LaunchConfig
-                    }
+                throw 'Tests have not been run'
+            }
+        } -Parameters ($ContainerResultFile, $ResultId)
 
-                    if ($GetPerformanceProfile.IsPresent) {
-                        Get-PerformanceProfile -LaunchConfig $LaunchConfig
-                    }
+        if ($GetCodeCoverage.IsPreset) {
+            Get-CodeCoverage -LaunchConfig $LaunchConfig
+        }
+
+        if ($GetPerformanceProfile.IsPresent) {
+            Get-PerformanceProfile -LaunchConfig $LaunchConfig
+        }
+
+        Write-Host "Copy C:\BCContainerTests\$ResultId to $LastResultFile"
+        Copy-Item -FromSession $Session -Path "C:\BCContainerTests\$ResultId" -Destination $ResultFile
+        Copy-Item -Path $ResultFile -Destination $LastResultFile
+    }
+    else {
+        if (Test-Path $ContainerResultFile) {
+            if ($GetCodeCoverage.IsPresent) {
+                Get-CodeCoverage -LaunchConfig $LaunchConfig
+            }
+
+            if ($GetPerformanceProfile.IsPresent) {
+                Get-PerformanceProfile -LaunchConfig $LaunchConfig
+            }
                     
-                    Copy-FileFromBCContainer -containerName $ContainerName -containerPath $ContainerResultFile -localPath $ResultFile
-                    Copy-Item -Path $ResultFile -Destination $LastResultFile
-                }
-                else {
-                    throw 'Tests have not been run'
-                }
-            }
-
-            Merge-ALTestRunnerTestResults -ResultsFile $ResultFile -ToPath (Join-Path (Split-Path (Get-ALTestRunnerConfigPath) -Parent) 'Results')
-            Remove-Item $ResultFile
-
-            if (!(Get-DockerHostIsRemote)) {
-                Remove-Item $ContainerResultFile
-            }
-            $BreakTestLoop = $true
+            Copy-FileFromBCContainer -containerName $ContainerName -containerPath $ContainerResultFile -localPath $ResultFile
+            Copy-Item -Path $ResultFile -Destination $LastResultFile
         }
-        catch {
-            $AttemptNo++
-            Write-Host "Error occurred ($_)" -ForegroundColor Magenta
-            Write-Host "Testing company set in config file exists in the container" -ForegroundColor Cyan
-            $NewCompanyName = Test-CompanyExists -LaunchConfig $LaunchConfig
-
-            if (![string]::IsNullOrEmpty($NewCompanyName)) {
-                $Params.Remove('companyName')
-                $Params.Add('companyName', $NewCompanyName)
-            }
-
-            if ($AttemptNo -ge 3) {
-                $BreakTestLoop = $true
-            }
+        else {
+            throw 'Tests have not been run'
         }
+    }
+
+    Merge-ALTestRunnerTestResults -ResultsFile $ResultFile -ToPath (Join-Path (Split-Path (Get-ALTestRunnerConfigPath) -Parent) 'Results')
+    Remove-Item $ResultFile
+
+    if (!(Get-DockerHostIsRemote)) {
+        Remove-Item $ContainerResultFile
     }
 }
 
