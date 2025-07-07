@@ -147,7 +147,7 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 			return;
 		}
 
-		command += ` -ResultsPath "${getALTestRunnerPath()}"`
+		command += ` -ResultsPath "${getALTestRunnerPath()}"`;
 
 		if (options.enableCodeCoverage) {
 			command += ' -GetCodeCoverage';
