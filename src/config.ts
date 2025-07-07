@@ -110,8 +110,14 @@ export function launchConfigIsValid(alTestRunnerConfig?: types.ALTestRunnerConfi
 
 export function getDebugConfigurationsFromLaunchJson(type: string) {
     const testWorkspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(getALTestRunnerConfigPath()));
-    const configuration = vscode.workspace.getConfiguration('launch', testWorkspaceFolder);
-    const debugConfigurations = configuration.configurations as Array<vscode.DebugConfiguration>;
+    var configuration = vscode.workspace.getConfiguration('launch', testWorkspaceFolder);
+    var debugConfigurations = configuration.configurations as Array<vscode.DebugConfiguration>;
+
+    if (debugConfigurations.length === 0) {
+        configuration = vscode.workspace.getConfiguration('launch');
+        debugConfigurations = configuration.configurations as Array<vscode.DebugConfiguration>;
+    }
+
     return debugConfigurations.filter(element => { return element.request === type; }).slice();
 }
 
