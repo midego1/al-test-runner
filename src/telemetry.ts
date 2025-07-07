@@ -74,6 +74,10 @@ function sendTestRunEvent(eventName: string, request: vscode.TestRunRequest) {
     let codeCoverageEnabled, publishBeforeTest, enablePublishingFromPowerShell: string;
     const config = getCurrentWorkspaceConfig();
 
+    if (getCurrentWorkspaceConfig(true, 'telemetry').telemetryLevel === 'off') {
+        return;
+    }
+
     codeCoverageEnabled = config.enableCodeCoverage;
     publishBeforeTest = config.publishBeforeTest;
 

@@ -20,7 +20,9 @@ function Invoke-ALTestRunner {
         [switch]$GetPerformanceProfile,
         [switch]$RunViaUrl,
         [Parameter(Mandatory = $false)]
-        [string]$BCCompilerFolder
+        [string]$BCCompilerFolder,
+        [Parameter(Mandatory = $true)]
+        [string]$ResultsPath
     )
 
     Import-ContainerHelper
@@ -71,7 +73,10 @@ function Invoke-ALTestRunner {
         GetCodeCoverage       = $GetCodeCoverage
         LaunchConfig          = $LaunchConfig
         GetPerformanceProfile = $GetPerformanceProfile
+        ResultsPath           = $ResultsPath
     }
+
+    Write-Verbose "Saving results to $ResultsPath"
 
     $Tenant = Get-TenantFromLaunchJson -LaunchConfig $LaunchConfig
     if ($Tenant) {

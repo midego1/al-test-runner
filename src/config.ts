@@ -110,8 +110,14 @@ export function launchConfigIsValid(alTestRunnerConfig?: types.ALTestRunnerConfi
 
 export function getDebugConfigurationsFromLaunchJson(type: string) {
     const testWorkspaceFolder = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(getALTestRunnerConfigPath()));
-    const configuration = vscode.workspace.getConfiguration('launch', testWorkspaceFolder);
-    const debugConfigurations = configuration.configurations as Array<vscode.DebugConfiguration>;
+    var configuration = vscode.workspace.getConfiguration('launch', testWorkspaceFolder);
+    var debugConfigurations = configuration.configurations as Array<vscode.DebugConfiguration>;
+
+    if (debugConfigurations.length === 0) {
+        configuration = vscode.workspace.getConfiguration('launch');
+        debugConfigurations = configuration.configurations as Array<vscode.DebugConfiguration>;
+    }
+
     return debugConfigurations.filter(element => { return element.request === type; }).slice();
 }
 
@@ -140,17 +146,17 @@ export async function selectLaunchConfig(): Promise<string | undefined> {
     });
 }
 
-export function getCurrentWorkspaceConfig(forTestFolder: boolean = true) {
+export function getCurrentWorkspaceConfig(forTestFolder: boolean = true, section: string = 'al-test-runner') {
     let testFolderPath: string | undefined;
     if (forTestFolder) {
         testFolderPath = getTestFolderPath();
     }
 
     if (testFolderPath) {
-        return vscode.workspace.getConfiguration('al-test-runner', vscode.Uri.file(testFolderPath));
+        return vscode.workspace.getConfiguration(section, vscode.Uri.file(testFolderPath));
     }
     else {
-        return vscode.workspace.getConfiguration('al-test-runner');
+        return vscode.workspace.getConfiguration(section);
     }
 }
 
