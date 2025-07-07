@@ -33,12 +33,14 @@ function Invoke-RunTestsViaUrl {
         $LaunchConfig,
         [switch]$GetPerformanceProfile,
         [Parameter(Mandatory = $true)]
-        $BCCompilerFolder
+        $BCCompilerFolder,
+        [Parameter(Mandatory = $true)]
+        [string]$ResultsPath
     )
 
     $ResultId = [Guid]::NewGuid().Guid + ".xml"
-    $ResultFile = Join-Path (Split-Path (Get-ALTestRunnerConfigPath) -Parent) $ResultId
-    $LastResultFile = Join-Path (Split-Path (Get-ALTestRunnerConfigPath) -Parent) 'last.xml'
+    $ResultFile = Join-Path $ResultsPath $ResultId
+    $LastResultFile = Join-Path $ResultsPath 'last.xml'
     
     $Message = "Running tests on $ContainerName, company $CompanyName"
 

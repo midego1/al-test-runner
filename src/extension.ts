@@ -147,12 +147,18 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 			return;
 		}
 
+		command += ` -ResultsPath "${getALTestRunnerPath()}"`;
+
 		if (options.enableCodeCoverage) {
 			command += ' -GetCodeCoverage';
 		}
 
 		if (config.enablePerformanceProfiler) {
 			command += ' -GetPerformanceProfile';
+		}
+
+		if (config.verbosePowerShell) {
+			command += ' -Verbose';
 		}
 
 		if (existsSync(getLastResultPath())) {
