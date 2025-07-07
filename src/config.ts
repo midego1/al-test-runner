@@ -140,17 +140,17 @@ export async function selectLaunchConfig(): Promise<string | undefined> {
     });
 }
 
-export function getCurrentWorkspaceConfig(forTestFolder: boolean = true) {
+export function getCurrentWorkspaceConfig(forTestFolder: boolean = true, section: string = 'al-test-runner') {
     let testFolderPath: string | undefined;
     if (forTestFolder) {
         testFolderPath = getTestFolderPath();
     }
 
     if (testFolderPath) {
-        return vscode.workspace.getConfiguration('al-test-runner', vscode.Uri.file(testFolderPath));
+        return vscode.workspace.getConfiguration(section, vscode.Uri.file(testFolderPath));
     }
     else {
-        return vscode.workspace.getConfiguration('al-test-runner');
+        return vscode.workspace.getConfiguration(section);
     }
 }
 
