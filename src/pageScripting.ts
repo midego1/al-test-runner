@@ -124,7 +124,7 @@ function uriIsPageScript(uri: vscode.Uri): boolean {
 
 async function getResults(): Promise<ALTestAssembly[]> {
     return new Promise(async resolve => {
-        const resultPath = `${getALTestRunnerPath()}\\results.xml`;
+        const resultPath = path.join(getALTestRunnerPath(), 'results.xml');
         if (!existsSync(resultPath)) {
             resolve([]);
             return;
