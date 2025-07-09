@@ -159,3 +159,8 @@ export type DevOpsTestStep = {
 	'Step Action': string;
 	'Step Expected': string;
 }
+
+export type PageScript = {
+	testItem: vscode.TestItem;
+	content: string;
+}
