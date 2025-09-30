@@ -299,10 +299,6 @@ function addOptionalRunTestParameters(command: string): string {
         command += ' -RunViaURL';
     }
 
-    if (getCurrentWorkspaceConfig().bcCompilerFolder) {
-        command += ` -BCCompilerFolder "${getCurrentWorkspaceConfig().bcCompilerFolder}"`;
-    }
-
     return command;
 }
 

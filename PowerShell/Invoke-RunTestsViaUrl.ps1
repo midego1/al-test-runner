@@ -33,8 +33,6 @@ function Invoke-RunTestsViaUrl {
         $LaunchConfig,
         [switch]$GetPerformanceProfile,
         [Parameter(Mandatory = $true)]
-        $BCCompilerFolder,
-        [Parameter(Mandatory = $true)]
         [string]$ResultsPath
     )
 
@@ -89,18 +87,10 @@ function Invoke-RunTestsViaUrl {
 
     Write-Host $Message -ForegroundColor Green
 
-    $bcContainerHelperPath = Join-Path (Split-Path (Get-Module bccontainerhelper).Path -Parent) 'AppHandling'
-    $PsTestToolFolder = Join-Path ([System.IO.Path]::GetTempPath()) "$([Guid]::NewGuid().ToString())"
-    New-Item $PsTestToolFolder -ItemType Directory | Out-Null
-    $testDlls = Join-Path $BCCompilerFolder "dlls/Test Assemblies/*.dll"
-    Copy-Item $testDlls -Destination $PsTestToolFolder -Force
-    Copy-Item -Path (Join-Path $bcContainerHelperPath "PsTestFunctions.ps1") -Destination $PsTestToolFolder -Force
-    Copy-Item -Path (Join-Path $bcContainerHelperPath "ClientContext.ps1") -Destination $PsTestToolFolder -Force
-
-    $PsTestFunctionsPath = Join-Path $PsTestToolFolder "PsTestFunctions.ps1"
-    $ClientContextPath = Join-Path $PsTestToolFolder "ClientContext.ps1"
-    $newtonSoftDllPath = Join-Path $PsTestToolFolder "Newtonsoft.Json.dll"
-    $clientDllPath = Join-Path $PsTestToolFolder "Microsoft.Dynamics.Framework.UI.Client.dll"
+    $PsTestFunctionsPath = Join-Path (Get-TestClientPath) "PsTestFunctions.ps1"
+    $ClientContextPath = Join-Path (Get-TestClientPath) "ClientContext.ps1"
+    $newtonSoftDllPath = Get-NewtonsoftJsonPath
+    $clientDllPath = Join-Path (Get-TestClientPath) "Microsoft.Dynamics.Framework.UI.Client.dll"
 
     . $PsTestFunctionsPath -newtonSoftDllPath $newtonSoftDllPath -clientDllPath $clientDllPath -clientContextScriptPath $ClientContextPath
 
