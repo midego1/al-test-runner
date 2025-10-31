@@ -115,7 +115,12 @@ function Invoke-ALTestRunner {
         $Params.Add('Culture', (Get-ValueFromALTestRunnerConfig -KeyName 'culture'))
     }
 
-    Invoke-RunTests @Params
+    if ($RunViaUrl.IsPresent) {
+        Invoke-RunTestsViaUrl @Params
+    }
+    else {
+        Invoke-RunTests @Params
+    }
 }
 
 Export-ModuleMember -Function Invoke-ALTestRunner

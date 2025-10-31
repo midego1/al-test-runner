@@ -45,7 +45,6 @@ function Invoke-RunTestsViaUrl {
     $Params = @{
         containerName       = $ContainerName
         companyName         = $CompanyName 
-        XUnitResultFileName = $ContainerResultFile
         culture             = $Culture
     }
     
