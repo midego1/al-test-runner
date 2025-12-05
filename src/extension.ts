@@ -179,6 +179,45 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 				resolve(results);
 
 				triggerUpdateDecorations();
+			} else {
+				// This should rarely happen now that PowerShell scripts create error result files
+				// But handle it defensively in case file deletion or other issues occur
+				const errorResult: types.ALTestAssembly = {
+					'$': {
+						name: 'AL Test Runner Timeout',
+						total: '0',
+						passed: '0',
+						failed: '1',
+						skipped: '0',
+						time: '0',
+						'run-time': new Date().toTimeString().split(' ')[0],
+						'run-date': new Date().toISOString().split('T')[0],
+						'test-framework': 'AL Test Runner'
+					},
+					collection: [{
+						'$': {
+							name: 'Error Collection',
+							total: '1',
+							passed: '0',
+							failed: '1',
+							skipped: '0',
+							time: '0'
+						},
+						test: [{
+							'$': {
+								name: 'Test Execution Timeout',
+								method: 'TimeoutError',
+								time: '0',
+								result: 'Fail'
+							},
+							failure: [{
+								message: 'Test results file was not created. Check the terminal output for errors.',
+								'stack-trace': ''
+							}]
+						}]
+					}]
+				};
+				resolve([errorResult]);
 			}
 		});
 	});
