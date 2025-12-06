@@ -7,7 +7,7 @@ import { ALMethod } from './types';
 export class TestCoverageCodeLensProvider implements vscode.CodeLensProvider {
     private codeLenses: vscode.CodeLens[] = [];
 
-    public provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): vscode.ProviderResult<vscode.CodeLens[]> {
+    public async provideCodeLenses(document: vscode.TextDocument, token: vscode.CancellationToken): Promise<vscode.CodeLens[]> {
         this.codeLenses = [];
 
         if (!(document.fileName.endsWith('.al'))) {
@@ -21,9 +21,10 @@ export class TestCoverageCodeLensProvider implements vscode.CodeLensProvider {
         const objectName = getDocumentName(document);
 
         if (getCurrentWorkspaceConfig().enableCodeLens) {
-            getMethodRangesFromDocument(document).forEach(methodRange => {
+            for (const methodRange of getMethodRangesFromDocument(document)) {
                 const method: ALMethod = { objectName: objectName, methodName: methodRange.name };
-                const testCount = getTestCoverageForMethod(method).length;
+                const testCoverages = await getTestCoverageForMethod(method);
+                const testCount = testCoverages.length;
                 if (testCount > 0) {
                     let title: string = `${testCount} test`;
                     if (testCount != 1) {
@@ -33,7 +34,7 @@ export class TestCoverageCodeLensProvider implements vscode.CodeLensProvider {
                     this.codeLenses.push(new vscode.CodeLens(methodRange.range, { title: `Run ${title}`, command: "altestrunner.runRelatedTests", arguments: [method] }));
                     this.codeLenses.push(new vscode.CodeLens(methodRange.range, { title: `Show ${title}`, command: "altestrunner.showRelatedTests", arguments: [method] }));
                 }
-            });
+            }
         }
 
         return this.codeLenses;

@@ -10,7 +10,22 @@ import { getTestItemForMethod, runTestHandler } from './testController';
 import { sendShowRelatedTestsEvent } from './telemetry';
 
 export let testCoverage: TestCoverage[] = [];
-readTestCoverage();
+let testCoverageLoaded: boolean = false;
+
+async function ensureTestCoverageLoaded(): Promise<void> {
+    if (!testCoverageLoaded) {
+        try {
+            await readTestCoverage();
+            testCoverageLoaded = true;
+        } catch (error) {
+            // If reading fails, notify user and use empty array
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            vscode.window.showWarningMessage(`Failed to load test coverage data: ${errorMessage}`);
+            testCoverage = [];
+            testCoverageLoaded = true; // Don't retry on every call
+        }
+    }
+}
 
 export async function buildTestCoverageFromTestItem(testItem: vscode.TestItem): Promise<void> {
     return new Promise(async resolve => {
@@ -26,6 +41,7 @@ export async function buildTestCoverageFromTestItem(testItem: vscode.TestItem): 
 async function writeTestCoverage(testMethod: ALMethod, newCoverage: TestCoverage[]): Promise<void> {
     return new Promise(async resolve => {
         const path = await getTestCoveragePath();
+        await ensureTestCoverageLoaded();
         let existingCoverage = excludeCoverageForMethod(testMethod);
         const mergedCoverage = addNewCoverage(existingCoverage, newCoverage);
         writeFileSync(path, JSON.stringify(mergedCoverage, null, 2));
@@ -129,7 +145,8 @@ function getPreviousMethodLine(codeCoverage: CodeCoverageLine[], index: number):
     }
 }
 
-export function getTestCoverageForMethod(method: ALMethod): TestCoverage[] {
+export async function getTestCoverageForMethod(method: ALMethod): Promise<TestCoverage[]> {
+    await ensureTestCoverageLoaded();
     return testCoverage.filter(element => {
         return (element.method.objectName == method.objectName && element.method.methodName == method.methodName);
     });
@@ -142,6 +159,7 @@ export async function showRelatedTests(method?: ALMethod) {
 
     sendShowRelatedTestsEvent();
 
+    await ensureTestCoverageLoaded();
     const relatedTestMethods: any[] = await getRelatedTests(method);
     writeTable(channelWriter, relatedTestMethods, ["objectName", "methodName", "path"], true, true, `${method.objectName}.${method.methodName} tested by:`, ["Codeunit", "Test", "Path"]);
     channelWriter.write(' ');
@@ -155,6 +173,7 @@ export async function runRelatedTests(method?: ALMethod) {
         return;
     }
 
+    await ensureTestCoverageLoaded();
     let testItems: vscode.TestItem[] = [];
     const relatedTests = await getRelatedTests(method);
     relatedTests.forEach(test => {
@@ -174,9 +193,9 @@ export async function runRelatedTests(method?: ALMethod) {
 async function getRelatedTests(method: ALMethod): Promise<ALMethod[]> {
     const files = await getALFilesInWorkspace();
 
-    return new Promise(resolve => {
+    return new Promise(async resolve => {
         let relatedTestMethods: ALMethod[] = [];
-        const testCoverages = getTestCoverageForMethod(method);
+        const testCoverages = await getTestCoverageForMethod(method);
         testCoverages.forEach(async (testCoverage, index) => {
             const path = await getFilePathOfObject({ type: 'codeunit', id: 0, name: testCoverage.testMethod.objectName }, testCoverage.testMethod.methodName, files);
             relatedTestMethods.push({ objectName: testCoverage.testMethod.objectName, methodName: testCoverage.testMethod.methodName, path: path });
