@@ -78,13 +78,18 @@ export async function getCodeCoveragePath(codeCoverageType?: CodeCoverageDisplay
 }
 
 export async function saveAllTestsCodeCoverage(): Promise<void> {
-    return new Promise(async () => {
-        const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
-        if (path) {
-            const allTestsPath = await getCodeCoveragePath(CodeCoverageDisplay.All);
-            if (allTestsPath) {
-                copyFileSync(path, allTestsPath);
+    return new Promise(async (resolve, reject) => {
+        try {
+            const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
+            if (path && existsSync(path)) {
+                const allTestsPath = await getCodeCoveragePath(CodeCoverageDisplay.All);
+                if (allTestsPath) {
+                    copyFileSync(path, allTestsPath);
+                }
             }
+            resolve();
+        } catch (error) {
+            reject(error);
         }
     });
 }
