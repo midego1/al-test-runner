@@ -142,8 +142,13 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 
 		const result = await publishApp(publishType);
 		if (!result.success) {
-			const results: types.ALTestAssembly[] = [];
-			resolve(results);
+			const errorResult = createErrorAssembly(
+				'AL Test Runner Publish Error',
+				'PublishError',
+				'Publish Failed',
+				result.message || 'Failed to publish the application. Tests cannot run without a successful publish.'
+			);
+			resolve([errorResult]);
 			return;
 		}
 
@@ -182,45 +187,54 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 			} else {
 				// This should rarely happen now that PowerShell scripts create error result files
 				// But handle it defensively in case file deletion or other issues occur
-				const errorResult: types.ALTestAssembly = {
-					'$': {
-						name: 'AL Test Runner Timeout',
-						total: '0',
-						passed: '0',
-						failed: '1',
-						skipped: '0',
-						time: '0',
-						'run-time': new Date().toTimeString().split(' ')[0],
-						'run-date': new Date().toISOString().split('T')[0],
-						'test-framework': 'AL Test Runner'
-					},
-					collection: [{
-						'$': {
-							name: 'Error Collection',
-							total: '1',
-							passed: '0',
-							failed: '1',
-							skipped: '0',
-							time: '0'
-						},
-						test: [{
-							'$': {
-								name: 'Test Execution Timeout',
-								method: 'TimeoutError',
-								time: '0',
-								result: 'Fail'
-							},
-							failure: [{
-								message: 'Test results file was not created. Check the terminal output for errors.',
-								'stack-trace': ''
-							}]
-						}]
-					}]
-				};
+				const errorResult = createErrorAssembly(
+					'AL Test Runner Timeout',
+					'TimeoutError',
+					'Test Execution Timeout',
+					'Test results file was not created. Check the terminal output for errors.'
+				);
 				resolve([errorResult]);
 			}
 		});
 	});
+}
+
+function createErrorAssembly(assemblyName: string, errorMethod: string, errorName: string, errorMessage: string): types.ALTestAssembly {
+	return {
+		'$': {
+			name: assemblyName,
+			total: '0',
+			passed: '0',
+			failed: '1',
+			skipped: '0',
+			time: '0',
+			'run-time': new Date().toTimeString().split(' ')[0],
+			'run-date': new Date().toISOString().split('T')[0],
+			'test-framework': 'AL Test Runner'
+		},
+		collection: [{
+			'$': {
+				name: 'Error Collection',
+				total: '1',
+				passed: '0',
+				failed: '1',
+				skipped: '0',
+				time: '0'
+			},
+			test: [{
+				'$': {
+					name: errorName,
+					method: errorMethod,
+					time: '0',
+					result: 'Fail'
+				},
+				failure: [{
+					message: errorMessage,
+					'stack-trace': ''
+				}]
+			}]
+		}]
+	};
 }
 
 async function readTestResults(uri: vscode.Uri): Promise<types.ALTestAssembly[]> {

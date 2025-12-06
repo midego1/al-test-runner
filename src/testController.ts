@@ -94,50 +94,58 @@ export async function runTestHandler(request: vscode.TestRunRequest) {
     const run = alTestController.createTestRun(request, timestamp);
     sendTestRunStartEvent(request);
 
-    let results: ALTestAssembly[];
-    if (request.include === undefined) {
-        results = await runAllTests(request);
-        saveAllTestsCodeCoverage();
-    }
-    else if (request.include.length > 1) {
-        results = await runSelectedTests(request);
-    }
-    else {
-        const testItem = request.include![0];
-
-        if (testItemIsPageScript(testItem)) {
-            results = await runPageScript(testItem);
+    try {
+        let results: ALTestAssembly[];
+        if (request.include === undefined) {
+            results = await runAllTests(request);
+            await saveAllTestsCodeCoverage();
+        }
+        else if (request.include.length > 1) {
+            results = await runSelectedTests(request);
         }
         else {
-            let lineNumber: number = 0;
-            let filename: string;
-            if (testItem.parent) {
-                lineNumber = testItem.range!.start.line;
-                filename = testItem.parent!.uri!.fsPath;
+            const testItem = request.include![0];
+
+            if (testItemIsPageScript(testItem)) {
+                results = await runPageScript(testItem);
             }
             else {
-                filename = testItem.uri!.fsPath;
+                let lineNumber: number = 0;
+                let filename: string;
+                if (testItem.parent) {
+                    lineNumber = testItem.range!.start.line;
+                    filename = testItem.parent!.uri!.fsPath;
+                }
+                else {
+                    filename = testItem.uri!.fsPath;
+                }
+
+                results = await runTest(request, filename, lineNumber);
+                buildTestCoverageFromTestItem(testItem);
             }
-
-            results = await runTest(request, filename, lineNumber);
-            buildTestCoverageFromTestItem(testItem);
         }
-    }
 
-    setResultsForTestItems(results, request, run);
+        setResultsForTestItems(results, request, run);
 
-    if (getCoverageEnabledForTestRunRequest(request)) {
-        await saveTestRunCoverage(run);
-        const codeCoverage = await readCodeCoverage(CodeCoverageDisplay.All, run);
-        getALFilesInCoverage(codeCoverage).forEach(alFile => {
-            run.addCoverage(getFileCoverage(codeCoverage, alFile));
-        });
-    }
+        if (getCoverageEnabledForTestRunRequest(request)) {
+            await saveTestRunCoverage(run);
+            const codeCoverage = await readCodeCoverage(CodeCoverageDisplay.All, run);
+            getALFilesInCoverage(codeCoverage).forEach(alFile => {
+                run.addCoverage(getFileCoverage(codeCoverage, alFile));
+            });
+        }
 
-    run.end();
-    sendTestRunFinishedEvent(request);
-    if (results.length > 0) {
-        outputTestResults(results);
+        if (results.length > 0) {
+            outputTestResults(results);
+        }
+    } catch (error) {
+        // Ensure errors don't prevent the test run from ending
+        outputWriter.write('⚠️ Error during test execution: ' + (error instanceof Error ? error.message : String(error)));
+        outputWriter.show();
+    } finally {
+        // Always end the test run, even if there were errors
+        run.end();
+        sendTestRunFinishedEvent(request);
     }
 }
 
@@ -145,6 +153,11 @@ function setResultsForTestItems(results: ALTestAssembly[], request: vscode.TestR
     if (results.length == 0) {
         return;
     }
+
+    // Check if this is an error result (publish error or timeout)
+    const isErrorResult = results.length === 1 &&
+                         (results[0].collection[0].test[0].$.method === 'PublishError' ||
+                          results[0].collection[0].test[0].$.method === 'TimeoutError');
 
     let testItems: vscode.TestItem[] = [];
     if (request.include) {
@@ -161,15 +174,27 @@ function setResultsForTestItems(results: ALTestAssembly[], request: vscode.TestR
     }
 
     testItems!.forEach(testItem => {
-        if (testItem.parent) {
-            const result = getResultForTestItem(results, testItem, testItem.parent)
-            setResultForTestItem(result, testItem, run);
-        }
-        else {
-            testItem.children.forEach(test => {
-                const result = getResultForTestItem(results, test, testItem);
-                setResultForTestItem(result, test, run);
-            });
+        if (isErrorResult) {
+            // Mark all tests as failed with the error message
+            const errorMessage = results[0].collection[0].test[0].failure[0].message;
+            if (testItem.parent) {
+                run.failed(testItem, new vscode.TestMessage(errorMessage));
+            } else {
+                testItem.children.forEach(test => {
+                    run.failed(test, new vscode.TestMessage(errorMessage));
+                });
+            }
+        } else {
+            if (testItem.parent) {
+                const result = getResultForTestItem(results, testItem, testItem.parent)
+                setResultForTestItem(result, testItem, run);
+            }
+            else {
+                testItem.children.forEach(test => {
+                    const result = getResultForTestItem(results, test, testItem);
+                    setResultForTestItem(result, test, run);
+                });
+            }
         }
     });
 }
