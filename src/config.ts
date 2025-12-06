@@ -2,12 +2,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import * as vscode from 'vscode';
 import { sendDebugEvent } from './telemetry';
 import * as types from './types';
-import { getTestFolderPath } from './alFileHelper';
 import { activeEditor } from './extension';
 import { invokePowerShellCommand } from './powershell';
 
 export function getALTestRunnerPath(): string {
-    const alTestRunnerPath = getTestFolderPath() + '\\.altestrunner';
+    const testFolderPath = getTestFolderFromConfig(getCurrentWorkspaceConfig(false)) || getWorkspaceFolder();
+    const alTestRunnerPath = testFolderPath + '\\.altestrunner';
     return alTestRunnerPath;
 }
 
@@ -122,7 +122,8 @@ export function getDebugConfigurationsFromLaunchJson(type: string) {
 }
 
 export function getLaunchJsonPath() {
-    return getTestFolderPath() + '\\.vscode\\launch.json';
+    const testFolderPath = getTestFolderFromConfig(getCurrentWorkspaceConfig(false)) || getWorkspaceFolder();
+    return testFolderPath + '\\.vscode\\launch.json';
 }
 
 export async function selectLaunchConfig(): Promise<string | undefined> {
@@ -149,7 +150,7 @@ export async function selectLaunchConfig(): Promise<string | undefined> {
 export function getCurrentWorkspaceConfig(forTestFolder: boolean = true, section: string = 'al-test-runner') {
     let testFolderPath: string | undefined;
     if (forTestFolder) {
-        testFolderPath = getTestFolderPath();
+        testFolderPath = getTestFolderFromConfig(vscode.workspace.getConfiguration(section)) || getWorkspaceFolder();
     }
 
     if (testFolderPath) {
