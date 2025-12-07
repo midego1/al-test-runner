@@ -115,7 +115,7 @@ function Invoke-RunTests {
                 }
             } -Parameters ($ContainerResultFile, $ResultId)
 
-            if ($GetCodeCoverage.IsPreset) {
+            if ($GetCodeCoverage.IsPresent) {
                 Get-CodeCoverage -LaunchConfig $LaunchConfig
             }
 
