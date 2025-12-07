@@ -13,6 +13,7 @@ export function getOutputWriter(outputType: OutputType): OutputWriter {
 
 export interface OutputWriter {
     content: string;
+    hasContent: boolean;
     write(contentLine: string): void;
     clear(): void;
     show(): void;
@@ -20,13 +21,16 @@ export interface OutputWriter {
 
 class OutputChannel implements OutputWriter {
     content: string = "";
+    hasContent: boolean = false;
 
     write(contentLine: string) {
         outputChannel.appendLine(contentLine);
+        this.hasContent = true;
     }
 
     clear() {
         outputChannel.clear();
+        this.hasContent = false;
     }
 
     show() {
@@ -36,14 +40,17 @@ class OutputChannel implements OutputWriter {
 
 class OutputEditor implements OutputWriter {
     content: string = "";
+    hasContent: boolean = false;
     document?: vscode.TextDocument;
 
     write(contentLine: string) {
         this.content += contentLine + "\n";
+        this.hasContent = true;
     }
 
     clear() {
         this.content = "";
+        this.hasContent = false;
     }
 
     async show() {

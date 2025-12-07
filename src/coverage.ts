@@ -38,17 +38,21 @@ export async function updateCodeCoverageDecoration() {
 export function readCodeCoverage(codeCoverageDisplay?: CodeCoverageDisplay, testRun?: vscode.TestRun): Promise<CodeCoverageLine[]> {
     return new Promise(async (resolve) => {
         let codeCoverage: CodeCoverageLine[] = [];
-        let codeCoveragePath;
-        if (testRun) {
-            codeCoveragePath = getCoveragePathForTestRun(testRun);
-        }
-        else {
-            codeCoveragePath = await getCodeCoveragePath(codeCoverageDisplay);
-        }
-        if (codeCoveragePath) {
-            if (existsSync(codeCoveragePath)) {
-                codeCoverage = JSON.parse(readFileSync(codeCoveragePath, { encoding: 'utf-8' }));
+        try {
+            let codeCoveragePath;
+            if (testRun) {
+                codeCoveragePath = getCoveragePathForTestRun(testRun);
             }
+            else {
+                codeCoveragePath = await getCodeCoveragePath(codeCoverageDisplay);
+            }
+            if (codeCoveragePath) {
+                if (existsSync(codeCoveragePath)) {
+                    codeCoverage = JSON.parse(readFileSync(codeCoveragePath, { encoding: 'utf-8' }));
+                }
+            }
+        } catch (error) {
+            outputWriter.write(`⚠️ Error reading code coverage: ${error instanceof Error ? error.message : String(error)}`);
         }
 
         resolve(codeCoverage);
@@ -81,7 +85,12 @@ export async function saveAllTestsCodeCoverage(): Promise<void> {
     return new Promise(async (resolve, reject) => {
         try {
             const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
-            if (path && existsSync(path)) {
+            if (path) {
+                if (!existsSync(path)) {
+                    outputWriter.write(`⚠️ Code coverage file not found: ${path}`);
+                    resolve();
+                    return;
+                }
                 const allTestsPath = await getCodeCoveragePath(CodeCoverageDisplay.All);
                 if (allTestsPath) {
                     copyFileSync(path, allTestsPath);
@@ -89,19 +98,30 @@ export async function saveAllTestsCodeCoverage(): Promise<void> {
             }
             resolve();
         } catch (error) {
-            reject(error);
+            outputWriter.write(`⚠️ Error saving code coverage: ${error instanceof Error ? error.message : String(error)}`);
+            resolve(); // Resolve instead of reject to prevent unhandled promise rejection
         }
     });
 }
 
 export async function saveTestRunCoverage(testRun: vscode.TestRun): Promise<void> {
     return new Promise(async resolve => {
-        const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
-        if (path) {
-            let testRunCoveragePath = getCoveragePathForTestRun(testRun);
-            copyFileSync(path, testRunCoveragePath);
+        try {
+            const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
+            if (path) {
+                if (!existsSync(path)) {
+                    outputWriter.write(`⚠️ Code coverage file not found: ${path}`);
+                    resolve();
+                    return;
+                }
+                let testRunCoveragePath = getCoveragePathForTestRun(testRun);
+                copyFileSync(path, testRunCoveragePath);
+            }
+            resolve();
+        } catch (error) {
+            outputWriter.write(`⚠️ Error saving test run coverage: ${error instanceof Error ? error.message : String(error)}`);
+            resolve(); // Resolve instead of reject to prevent unhandled promise rejection
         }
-        resolve();
     });
 }
 

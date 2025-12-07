@@ -93,6 +93,7 @@ export async function discoverTestsInDocument(document: vscode.TextDocument) {
 export async function runTestHandler(request: vscode.TestRunRequest) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     clearMarkedTestItems(); // Clear any previously marked items before starting a new test run
+    outputWriter.clear(); // Clear output at start instead of end to preserve error messages
     const run = alTestController.createTestRun(request, timestamp);
     sendTestRunStartEvent(request);
 
@@ -153,6 +154,10 @@ export async function runTestHandler(request: vscode.TestRunRequest) {
         }
 
         if (results.length > 0) {
+            // Add blank line if there was content before test results (e.g., warnings)
+            if (outputWriter.hasContent) {
+                outputWriter.write('');
+            }
             outputTestResults(results);
         }
     } catch (error) {
@@ -397,7 +402,7 @@ function setResultForTestItem(result: ALTestResult, testItem: vscode.TestItem, r
     if (testItemWasMarkedByParser(testItem)) {
         return;
     }
-    
+
     if (result.$.result == 'Pass') {
         run.passed(testItem);
     }
@@ -574,10 +579,6 @@ async function outputTestResults(assemblies: ALTestAssembly[]): Promise<Boolean>
         let noOfFailures: number = 0;
         let noOfSkips: number = 0;
         let totalTime: number = 0;
-
-        if (assemblies.length > 0) {
-            outputWriter.clear();
-        }
 
         for (let assembly of assemblies) {
             noOfTests += parseInt(assembly.$.total);
