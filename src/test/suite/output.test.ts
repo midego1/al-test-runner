@@ -53,7 +53,6 @@ suite('Output Warning System Tests', () => {
             writer.writeError('Warning 1');
             writer.writeError('Warning 2');
 
-            const initialContent = writer.hasContent;
             writer.flushWarnings();
 
             // After flushing, warnings should be cleared
