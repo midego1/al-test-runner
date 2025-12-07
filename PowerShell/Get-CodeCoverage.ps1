@@ -8,8 +8,7 @@ function Get-CodeCoverage {
 
     $CodeCoverageFile = Get-ValueFromALTestRunnerConfig -KeyName 'codeCoveragePath'
     if ([string]::IsNullOrEmpty($CodeCoverageFile)) {
-        Write-Host "Please set a value for codeCoveragePath in the AL Test Runner config.json file." -ForegroundColor DarkRed
-        Write-Host "See https://jpearson.blog/2021/02/07/measuring-code-coverage-in-business-central-with-al-test-runner/ for more information." -ForegroundColor DarkRed
+        Write-Host "AL Test Runner WARNING: Code coverage is enabled but codeCoveragePath is not set in AL Test Runner config.json file. See https://jpearson.blog/2021/02/07/measuring-code-coverage-in-business-central-with-al-test-runner/ for more information." -ForegroundColor DarkRed
         return
     }
 

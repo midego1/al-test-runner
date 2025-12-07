@@ -88,8 +88,18 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
     };
 
     const processLine = (line: string) => {
+        // Strip ANSI escape codes (color formatting and any remaining cursor codes)
+        const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][0-9;]*\x07/g, '');
+
+        // Check for PowerShell warnings - any line with "AL Test Runner WARNING:"
+        const warningMatch = cleanLine.match(/AL Test Runner WARNING: (.+)/);
+        if (warningMatch) {
+            outputWriter.writeError(warningMatch[1]);
+            return;
+        }
+
         // Look for "Connecting to" to start all tests in the first codeunit being executed
-        if (!hasStartedFirstCodeunit && /^Connecting to https?:\/\//.test(line)) {
+        if (!hasStartedFirstCodeunit && /^Connecting to https?:\/\//.test(cleanLine)) {
             const sortedCodeunits = getSortedCodeunits();
             if (sortedCodeunits.length > 0) {
                 currentCodeunit = sortedCodeunits[0];
@@ -108,7 +118,7 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
 
         // Process test results (before handling codeunit transitions)
         // Look for individual test results: "    Testfunction TestCreateLibraryMember Success (0.02 seconds)"
-        const testMatch = line.match(/^\s+Testfunction\s+(.+?)\s+(Success|Failure)\s+\(/);
+        const testMatch = cleanLine.match(/^\s+Testfunction\s+(.+?)\s+(Success|Failure)\s+\(/);
         if (testMatch) {
             const testName = testMatch[1];
             const testResult = testMatch[2];
@@ -135,13 +145,13 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         }
 
         // Collect failure details - Error line starts with "      Error:"
-        if (currentFailedTest && line.match(/^\s{6}Error:/)) {
+        if (currentFailedTest && cleanLine.match(/^\s{6}Error:/)) {
             failureMessage = '';
             return;
         }
 
         // Collect Call Stack - starts with "      Call Stack:"
-        if (currentFailedTest && line.match(/^\s{6}Call Stack:/)) {
+        if (currentFailedTest && cleanLine.match(/^\s{6}Call Stack:/)) {
             if (failureMessage) {
                 failureMessage += '\n';
             }
@@ -149,8 +159,8 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         }
 
         // Collect failure message lines (indented with 8 spaces)
-        if (currentFailedTest && line.match(/^\s{8}\S/)) {
-            const messageLine = line.trim();
+        if (currentFailedTest && cleanLine.match(/^\s{8}\S/)) {
+            const messageLine = cleanLine.trim();
             if (messageLine) {
                 failureMessage += messageLine + '\n';
             }
@@ -158,7 +168,7 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         }
 
         // When we hit the next test function or codeunit, mark the failed test with collected details
-        if (currentFailedTest && (line.match(/^\s+Codeunit\s+\d+/) || line.match(/^\s+Testfunction\s+/))) {
+        if (currentFailedTest && (cleanLine.match(/^\s+Codeunit\s+\d+/) || cleanLine.match(/^\s+Testfunction\s+/))) {
             const errorMsg = failureMessage.trim() || 'Test failed';
             run.failed(currentFailedTest, new vscode.TestMessage(errorMsg));
             markedTestItems.add(currentFailedTest);
@@ -172,7 +182,7 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
 
         // Look for completed codeunit output: "  Codeunit 70450 LIB Library Member Tests Success (0.044 seconds)"
         // Don't switch immediately - mark it as pending and switch after processing all lines in this batch
-        const codeunitMatch = line.match(/^\s+Codeunit\s+(\d+)\s+(.+?)\s+(Success|Failure)\s+\(/);
+        const codeunitMatch = cleanLine.match(/^\s+Codeunit\s+(\d+)\s+(.+?)\s+(Success|Failure)\s+\(/);
         if (codeunitMatch) {
             const codeunitId = codeunitMatch[1];
             const codeunitName = codeunitMatch[2].trim();

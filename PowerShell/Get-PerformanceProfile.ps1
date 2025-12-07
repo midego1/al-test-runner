@@ -28,7 +28,7 @@ function Get-PerformanceProfile {
             Set-Content -Path $PerformanceProfilePath -Value $PerformanceProfile
         }
         else {
-            Write-Host "Could not download performance profile. Please ensure at least v1.4 of the Test Runner Service app is installed." -ForegroundColor DarkRed
+            Write-Host "AL Test Runner WARNING: Could not download performance profile. Please ensure at least v1.4 of the Test Runner Service app is installed." -ForegroundColor DarkRed
         }
     }
     else {
@@ -46,7 +46,7 @@ function Get-PerformanceProfile {
         $Result = (Invoke-InvokeWebRequest $Params).Content
         [xml]$ResultXml = $Result
         $Result = $ResultXml.Envelope.Body.GetPerformanceProfile_Result.InnerText
-        
+
         $PerformanceProfile = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Result))
         Set-Content -Path $PerformanceProfilePath -Value $PerformanceProfile
     }
