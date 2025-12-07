@@ -182,7 +182,7 @@ function Invoke-RunTests {
             New-Item -Path $ResultsPath -ItemType Directory -Force | Out-Null
         }
 
-        # Write error result to both result file and last.xml
+        # Write error result to last.xml
         $errorXml | Out-File -FilePath $LastResultFile -Encoding UTF8 -Force
 
         # Re-throw to maintain error visibility

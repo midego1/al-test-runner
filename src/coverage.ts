@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { getALObjectOfDocument, getALFileForALObject, getTestFolderPath } from './alFileHelper';
-import { copyFileSync, existsSync, readFileSync } from 'fs';
+import { copyFileSync, existsSync, readFileSync, mkdirSync } from 'fs';
 import { ALFile, ALObject, CodeCoverageDisplay, CodeCoverageLine, CodeCoverageObject, enableCodeCoverage } from './types';
 import { activeEditor, codeCoverageDecorationType, outputWriter } from './extension';
 import { join, basename, dirname } from 'path';
@@ -88,12 +88,16 @@ export async function saveAllTestsCodeCoverage(): Promise<void> {
             const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
             if (path) {
                 if (!existsSync(path)) {
-                    outputWriter.writeError(`Code coverage file not found: ${path}`);
+                    outputWriter.writeError(`Code coverage file was not generated: ${path}. This may indicate that:\n  - The Test Runner Service app is not installed in BC (run: AL Test Runner: Install Test Runner Service)\n  - The testRunnerServiceUrl in .altestrunner/config.json is incorrect or unreachable\n  - The codeCoveragePath in .altestrunner/config.json and "al-test-runner.codeCoveragePath" in VS Code settings must both point to the same file\n  - The PowerShell test runner failed to download coverage data`);
                     resolve();
                     return;
                 }
                 const allTestsPath = await getCodeCoveragePath(CodeCoverageDisplay.All);
                 if (allTestsPath) {
+                    const targetDir = dirname(allTestsPath);
+                    if (!existsSync(targetDir)) {
+                        mkdirSync(targetDir, { recursive: true });
+                    }
                     copyFileSync(path, allTestsPath);
                 }
             }
@@ -109,13 +113,13 @@ export async function saveTestRunCoverage(testRun: vscode.TestRun): Promise<void
     return new Promise(async resolve => {
         try {
             const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
-            if (path) {
-                if (!existsSync(path)) {
-                    outputWriter.writeError(`Code coverage file not found: ${path}`);
-                    resolve();
-                    return;
-                }
+            if (path && existsSync(path)) {
+                // Only copy if the source file exists (error already logged by saveAllTestsCodeCoverage if missing)
                 let testRunCoveragePath = getCoveragePathForTestRun(testRun);
+                const targetDir = dirname(testRunCoveragePath);
+                if (!existsSync(targetDir)) {
+                    mkdirSync(targetDir, { recursive: true });
+                }
                 copyFileSync(path, testRunCoveragePath);
             }
             resolve();

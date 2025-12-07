@@ -13,7 +13,16 @@ function Get-CodeCoverage {
         return
     }
 
-    Write-Host "Downloading code coverage to $CodeCoverageFile"
+    # Ensure the directory exists
+    $CodeCoverageDir = Split-Path -Path $CodeCoverageFile -Parent
+    if (-not (Test-Path $CodeCoverageDir)) {
+        New-Item -Path $CodeCoverageDir -ItemType Directory -Force | Out-Null
+    }
+
+    # Resolve to absolute path for output
+    $ResolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($CodeCoverageFile)
+
+    Write-Host "Downloading code coverage to $ResolvedPath"
 
     if (Get-UrlIsForOData $ServiceUrl) {
         $Params = @{
