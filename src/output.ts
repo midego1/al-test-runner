@@ -14,7 +14,10 @@ export function getOutputWriter(outputType: OutputType): OutputWriter {
 export interface OutputWriter {
     content: string;
     hasContent: boolean;
+    warnings: string[];
     write(contentLine: string): void;
+    writeError(errorMessage: string): void;
+    flushWarnings(): void;
     clear(): void;
     show(): void;
 }
@@ -22,15 +25,45 @@ export interface OutputWriter {
 class OutputChannel implements OutputWriter {
     content: string = "";
     hasContent: boolean = false;
+    warnings: string[] = [];
 
     write(contentLine: string) {
         outputChannel.appendLine(contentLine);
         this.hasContent = true;
     }
 
+    writeError(errorMessage: string) {
+        this.warnings.push(errorMessage);
+    }
+
+    flushWarnings(): void {
+        if (this.warnings.length > 0) {
+            this.write('');
+            this.write('⚠️  Warnings:');
+            this.write('─'.repeat(80));
+            this.warnings.forEach(warning => {
+                this.write(`⚠️  ${warning}`);
+            });
+
+            const firstWarning = this.warnings[0];
+            const message = this.warnings.length === 1
+                ? firstWarning
+                : `${this.warnings.length} warnings occurred (see output for details)`;
+
+            vscode.window.showWarningMessage(`AL Test Runner: ${message}`, 'Show Output').then(selection => {
+                if (selection === 'Show Output') {
+                    this.show();
+                }
+            });
+
+            this.warnings = [];
+        }
+    }
+
     clear() {
         outputChannel.clear();
         this.hasContent = false;
+        this.warnings = [];
     }
 
     show() {
@@ -41,6 +74,7 @@ class OutputChannel implements OutputWriter {
 class OutputEditor implements OutputWriter {
     content: string = "";
     hasContent: boolean = false;
+    warnings: string[] = [];
     document?: vscode.TextDocument;
 
     write(contentLine: string) {
@@ -48,14 +82,43 @@ class OutputEditor implements OutputWriter {
         this.hasContent = true;
     }
 
+    writeError(errorMessage: string) {
+        this.warnings.push(errorMessage);
+    }
+
+    flushWarnings(): void {
+        if (this.warnings.length > 0) {
+            this.write('');
+            this.write('⚠️  Warnings:');
+            this.write('─'.repeat(80));
+            this.warnings.forEach(warning => {
+                this.write(`⚠️  ${warning}`);
+            });
+
+            const firstWarning = this.warnings[0];
+            const message = this.warnings.length === 1
+                ? firstWarning
+                : `${this.warnings.length} warnings occurred (see output for details)`;
+
+            vscode.window.showWarningMessage(`AL Test Runner: ${message}`, 'Show Output').then(selection => {
+                if (selection === 'Show Output') {
+                    this.show();
+                }
+            });
+
+            this.warnings = [];
+        }
+    }
+
     clear() {
         this.content = "";
         this.hasContent = false;
+        this.warnings = [];
     }
 
     async show() {
         this.document = await vscode.workspace.openTextDocument({ content: this.content });
-        vscode.window.showTextDocument(this.document);
+        await vscode.window.showTextDocument(this.document);
     }
 }
 

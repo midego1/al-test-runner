@@ -52,7 +52,7 @@ export function readCodeCoverage(codeCoverageDisplay?: CodeCoverageDisplay, test
                 }
             }
         } catch (error) {
-            outputWriter.write(`⚠️ Error reading code coverage: ${error instanceof Error ? error.message : String(error)}`);
+            outputWriter.writeError(`Error reading code coverage: ${error instanceof Error ? error.message : String(error)}`);
         }
 
         resolve(codeCoverage);
@@ -88,7 +88,7 @@ export async function saveAllTestsCodeCoverage(): Promise<void> {
             const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
             if (path) {
                 if (!existsSync(path)) {
-                    outputWriter.write(`⚠️ Code coverage file not found: ${path}`);
+                    outputWriter.writeError(`Code coverage file not found: ${path}`);
                     resolve();
                     return;
                 }
@@ -99,7 +99,7 @@ export async function saveAllTestsCodeCoverage(): Promise<void> {
             }
             resolve();
         } catch (error) {
-            outputWriter.write(`⚠️ Error saving code coverage: ${error instanceof Error ? error.message : String(error)}`);
+            outputWriter.writeError(`Error saving code coverage: ${error instanceof Error ? error.message : String(error)}`);
             resolve(); // Resolve instead of reject to prevent unhandled promise rejection
         }
     });
@@ -111,7 +111,7 @@ export async function saveTestRunCoverage(testRun: vscode.TestRun): Promise<void
             const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
             if (path) {
                 if (!existsSync(path)) {
-                    outputWriter.write(`⚠️ Code coverage file not found: ${path}`);
+                    outputWriter.writeError(`Code coverage file not found: ${path}`);
                     resolve();
                     return;
                 }
@@ -120,7 +120,7 @@ export async function saveTestRunCoverage(testRun: vscode.TestRun): Promise<void
             }
             resolve();
         } catch (error) {
-            outputWriter.write(`⚠️ Error saving test run coverage: ${error instanceof Error ? error.message : String(error)}`);
+            outputWriter.writeError(`Error saving test run coverage: ${error instanceof Error ? error.message : String(error)}`);
             resolve(); // Resolve instead of reject to prevent unhandled promise rejection
         }
     });

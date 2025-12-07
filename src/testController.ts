@@ -644,6 +644,7 @@ async function outputTestResults(assemblies: ALTestAssembly[]): Promise<Boolean>
             statusBarItem.dispose();
         }, 10000);
 
+        outputWriter.flushWarnings();
         outputWriter.show();
         resolve(true);
     });
