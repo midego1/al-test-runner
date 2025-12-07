@@ -328,7 +328,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles rapid consecutive chunks', () => {
-            const { codeunit, test1, test2 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -455,7 +455,7 @@ suite('Terminal Integration Tests', () => {
             terminal = vscode.window.createTerminal({ name: 'Test Terminal' });
 
             // Use very short timeout
-            const shellIntegration = await waitForShellIntegration(terminal, 10);
+            await waitForShellIntegration(terminal, 10);
 
             // Should return undefined on timeout (unless shell integration was already there)
             assert.ok(true, 'Function returned without hanging');
@@ -509,7 +509,7 @@ suite('Terminal Integration Tests', () => {
          */
 
         test('Parser handles real PowerShell test output format', () => {
-            const { codeunit, test1, test2 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -693,11 +693,6 @@ Setting test codeunit range ''
 
             // Parse the output
             parser(realWorldOutput);
-
-            // Count the different types of calls
-            const startedCount = callLog.filter(e => e.includes('started:')).length;
-            const passedCount = callLog.filter(e => e.includes('passed:')).length;
-            const failedCount = callLog.filter(e => e.includes('failed:')).length;
 
             // Verify parser doesn't crash and handles the output structure
             assert.ok(true, 'Parser handled complete real-world output without errors');

@@ -511,7 +511,7 @@ suite('Terminal Width Variation Tests', () => {
     });
 
     test('Parser handles wide terminal output (4 codeunits, 22 tests, 1 failure)', () => {
-        const items = createCompleteTestStructure();
+        createCompleteTestStructure();
         testRun = createTestRunForAll();
         const tracker = createTestRunTracker(testRun);
         const parser = createOutputParser(testRun, testRequest);
@@ -539,7 +539,7 @@ suite('Terminal Width Variation Tests', () => {
     });
 
     test('Parser handles wrapped terminal output (4 codeunits, 22 tests, 1 failure)', () => {
-        const items = createCompleteTestStructure();
+        createCompleteTestStructure();
         testRun = createTestRunForAll();
         const tracker = createTestRunTracker(testRun);
         const parser = createOutputParser(testRun, testRequest);
@@ -570,7 +570,7 @@ suite('Terminal Width Variation Tests', () => {
         // This test validates that both terminal widths produce the exact same test results
 
         // Test 1: Wide terminal
-        const items1 = createCompleteTestStructure();
+        createCompleteTestStructure();
         const testRun1 = createTestRunForAll();
         const tracker1 = createTestRunTracker(testRun1);
         const parser1 = createOutputParser(testRun1, testRequest);
@@ -581,7 +581,7 @@ suite('Terminal Width Variation Tests', () => {
         testController.dispose();
 
         // Test 2: Wrapped terminal
-        const items2 = createCompleteTestStructure();
+        createCompleteTestStructure();
         const testRun2 = createTestRunForAll();
         const tracker2 = createTestRunTracker(testRun2);
         const parser2 = createOutputParser(testRun2, testRequest);
