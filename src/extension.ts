@@ -4,8 +4,8 @@ import * as xml2js from 'xml2js';
 import * as types from './types';
 import { CodelensProvider } from './codeLensProvider';
 import { updateCodeCoverageDecoration, createCodeCoverageStatusBarItem } from './coverage';
-import { documentIsTestCodeunit, getALFilesInWorkspace, getDocumentIdAndName, getTestFolderPath, getTestMethodRangesFromDocument } from './alFileHelper';
-import { getALTestRunnerPath, getCurrentWorkspaceConfig, getDebugConfigurationsFromLaunchJson, getLaunchJsonPath } from './config';
+import { documentIsTestCodeunit, getALFilesInWorkspace, getDocumentIdAndName, getTestMethodRangesFromDocument } from './alFileHelper';
+import { getALTestRunnerPath, getCurrentWorkspaceConfig, getDebugConfigurationsFromLaunchJson, getLaunchJsonPath, getTestFolderFromConfig, getWorkspaceFolder } from './config';
 import { getOutputWriter, OutputWriter } from './output';
 import { createTestController, discoverTests, discoverTestsInDocument } from './testController';
 import { onChangeAppFile, publishApp } from './publish';
@@ -31,15 +31,10 @@ const coveredLinesColor = 'rgba(' + config.coveredLinesColor.red + ',' + config.
 export const outputWriter: OutputWriter = getOutputWriter(vscode.workspace.getConfiguration('al-test-runner').testOutputLocation);
 export const channelWriter: OutputWriter = getOutputWriter(types.OutputType.Channel);
 
-const testFolderPath = getTestFolderPath();
-if (testFolderPath) {
-	const testAppsPath = join(testFolderPath, '*.app');
-	const appFileWatcher = vscode.workspace.createFileSystemWatcher(testAppsPath, false, false, true);
-	appFileWatcher.onDidChange(e => {
-		onChangeAppFile(e);
-	});
+function getTestFolderPath(): string | undefined {
+	const config = getCurrentWorkspaceConfig(false);
+	return getTestFolderFromConfig(config) || getWorkspaceFolder();
 }
-
 
 export const passingTestDecorationType = vscode.window.createTextEditorDecorationType({
 	backgroundColor: passingTestColor
