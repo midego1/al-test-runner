@@ -148,7 +148,8 @@ export enum enableCodeCoverage {
 }
 
 export type invokeTestRunnerOptions = {
-	enableCodeCoverage: boolean
+	enableCodeCoverage: boolean;
+	onOutput?: (data: string) => void;
 }
 
 export type DevOpsTestStep = {

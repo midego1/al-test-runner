@@ -9,6 +9,7 @@ import { buildTestCoverageFromTestItem } from './testCoverage';
 import { getALFilesInCoverage, getCoverageEnabledForTestRunRequest, getFileCoverage, getStatementCoverage, readCodeCoverage, saveAllTestsCodeCoverage, saveTestRunCoverage } from './coverage';
 import { readyToDebug } from './debug';
 import { discoverPageScripts, runPageScript, testItemIsPageScript } from './pageScripting';
+import { createOutputParser, testItemWasMarkedByParser, clearMarkedTestItems } from './testOutputParser';
 
 export let numberOfTests: number;
 
@@ -91,17 +92,33 @@ export async function discoverTestsInDocument(document: vscode.TextDocument) {
 
 export async function runTestHandler(request: vscode.TestRunRequest) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    clearMarkedTestItems(); // Clear any previously marked items before starting a new test run
     const run = alTestController.createTestRun(request, timestamp);
     sendTestRunStartEvent(request);
+
+    // Enqueue tests based on what was selected
+    const itemsToEnqueue = request.include ? request.include : Array.from(alTestController.items).filter(item => !testItemIsPageScript(item[1])).map(item => item[1]);
+
+    itemsToEnqueue.forEach(testItem => {
+        if (testItem.parent) {
+            // This is an individual test function - enqueue it
+            run.enqueued(testItem);
+        } else {
+            // This is a codeunit - enqueue all its children
+            testItem.children.forEach(test => {
+                run.enqueued(test);
+            });
+        }
+    });
 
     try {
         let results: ALTestAssembly[];
         if (request.include === undefined) {
-            results = await runAllTests(request);
+            results = await runAllTests(request, run);
             await saveAllTestsCodeCoverage();
         }
         else if (request.include.length > 1) {
-            results = await runSelectedTests(request);
+            results = await runSelectedTests(request, run);
         }
         else {
             const testItem = request.include![0];
@@ -120,7 +137,7 @@ export async function runTestHandler(request: vscode.TestRunRequest) {
                     filename = testItem.uri!.fsPath;
                 }
 
-                results = await runTest(request, filename, lineNumber);
+                results = await runTest(request, filename, lineNumber, undefined, undefined, run);
                 buildTestCoverageFromTestItem(testItem);
             }
         }
@@ -223,7 +240,7 @@ export function readyToRunTests(): Promise<Boolean> {
     });
 }
 
-export async function runTest(request: vscode.TestRunRequest, filename?: string, selectionStart?: number, extensionId?: string, extensionName?: string): Promise<ALTestAssembly[]> {
+export async function runTest(request: vscode.TestRunRequest, filename?: string, selectionStart?: number, extensionId?: string, extensionName?: string, run?: vscode.TestRun): Promise<ALTestAssembly[]> {
     sendDebugEvent('runTest-start', { filename: filename ? filename : 'undefined', selectionStart: selectionStart ? selectionStart.toString() : '0', extensionId: extensionId ? extensionId : 'undefined', extensionName: extensionName ? extensionName : 'undefined' });
     return new Promise(async (resolve) => {
         await readyToRunTests().then(async ready => {
@@ -248,7 +265,10 @@ export async function runTest(request: vscode.TestRunRequest, filename?: string,
 
                 const codeCoverageEnabled = getCoverageEnabledForTestRunRequest(request);
 
-                const results: ALTestAssembly[] = await invokeTestRunner(command, { enableCodeCoverage: codeCoverageEnabled });
+                const results: ALTestAssembly[] = await invokeTestRunner(command, {
+                    enableCodeCoverage: codeCoverageEnabled,
+                    onOutput: run ? createOutputParser(run, request) : undefined
+                });
                 resolve(results);
             }
             else {
@@ -258,7 +278,7 @@ export async function runTest(request: vscode.TestRunRequest, filename?: string,
     });
 };
 
-export async function runAllTests(request: vscode.TestRunRequest, extensionId?: string, extensionName?: string): Promise<ALTestAssembly[]> {
+export async function runAllTests(request: vscode.TestRunRequest, run?: vscode.TestRun, extensionId?: string, extensionName?: string): Promise<ALTestAssembly[]> {
     return new Promise(async (resolve) => {
         await readyToRunTests().then(async ready => {
             if (ready) {
@@ -277,7 +297,10 @@ export async function runAllTests(request: vscode.TestRunRequest, extensionId?: 
 
                 const codeCoverageEnabled = getCoverageEnabledForTestRunRequest(request);
 
-                const results: ALTestAssembly[] = await invokeTestRunner(command, {enableCodeCoverage: codeCoverageEnabled});
+                const results: ALTestAssembly[] = await invokeTestRunner(command, {
+                    enableCodeCoverage: codeCoverageEnabled,
+                    onOutput: run ? createOutputParser(run, request) : undefined
+                });
                 resolve(results);
             }
             else {
@@ -287,7 +310,7 @@ export async function runAllTests(request: vscode.TestRunRequest, extensionId?: 
     });
 }
 
-export async function runSelectedTests(request: vscode.TestRunRequest, extensionId?: string, extensionName?: string): Promise<ALTestAssembly[]> {
+export async function runSelectedTests(request: vscode.TestRunRequest, run?: vscode.TestRun, extensionId?: string, extensionName?: string): Promise<ALTestAssembly[]> {
     return new Promise(async (resolve) => {
         await readyToRunTests().then(async ready => {
             if (ready) {
@@ -309,7 +332,10 @@ export async function runSelectedTests(request: vscode.TestRunRequest, extension
 
                 const codeCoverageEnabled = getCoverageEnabledForTestRunRequest(request);
 
-                const results: ALTestAssembly[] = await invokeTestRunner(command, { enableCodeCoverage: codeCoverageEnabled });
+                const results: ALTestAssembly[] = await invokeTestRunner(command, {
+                    enableCodeCoverage: codeCoverageEnabled,
+                    onOutput: run ? createOutputParser(run, request) : undefined
+                });
                 resolve(results);
             }
             else {
@@ -367,6 +393,11 @@ export async function debugTest(filename: string, selectionStart: number) {
 }
 
 function setResultForTestItem(result: ALTestResult, testItem: vscode.TestItem, run: vscode.TestRun) {
+    // Skip if this test was already marked by the real-time parser
+    if (testItemWasMarkedByParser(testItem)) {
+        return;
+    }
+    
     if (result.$.result == 'Pass') {
         run.passed(testItem);
     }

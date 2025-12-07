@@ -18,6 +18,7 @@ import { CodeCoverageCodeLensProvider } from './codeCoverageCodeLensProvider';
 import { registerCommands } from './commands';
 import { createHEADFileWatcherForTestWorkspaceFolder } from './git';
 import { createPerformanceStatusBarItem } from './performance';
+import { executeWithShellIntegration } from './terminalExecutor';
 
 let terminal: vscode.Terminal;
 export let activeEditor = vscode.window.activeTextEditor;
@@ -171,31 +172,43 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 		}
 
 		terminal = getALTestRunnerTerminal(getTerminalName());
-		terminal.sendText(' ');
-		terminal.show(true);
-		terminal.sendText('cd "' + getTestFolderPath() + '"');
-		invokeCommand(config.preTestCommand);
-		terminal.sendText(command);
-		invokeCommand(config.postTestCommand);
 
-		awaitFileExistence(getLastResultPath(), 0).then(async resultsAvailable => {
-			if (resultsAvailable) {
-				const results: types.ALTestAssembly[] = await readTestResults(vscode.Uri.file(getLastResultPath()));
-				resolve(results);
+		// Execute command using shell integration with real-time output parsing
+		try {
+			await executeWithShellIntegration(terminal, command, {
+				workingDirectory: getTestFolderPath(),
+				preCommand: config.preTestCommand,
+				postCommand: config.postTestCommand,
+				onOutput: options.onOutput,
+				showTerminal: true // Show terminal initially so users can see PowerShell setup and publishing
+				// Focus will switch to Test Results output when first test starts (handled by testOutputParser)
+			});
 
-				triggerUpdateDecorations();
-			} else {
-				// This should rarely happen now that PowerShell scripts create error result files
-				// But handle it defensively in case file deletion or other issues occur
-				const errorResult = createErrorAssembly(
-					'AL Test Runner Timeout',
-					'TimeoutError',
-					'Test Execution Timeout',
-					'Test results file was not created. Check the terminal output for errors.'
-				);
-				resolve([errorResult]);
-			}
-		});
+			// Wait for command to complete and results file to be created
+			awaitFileExistence(getLastResultPath(), 0).then(async resultsAvailable => {
+				if (resultsAvailable) {
+					const results: types.ALTestAssembly[] = await readTestResults(vscode.Uri.file(getLastResultPath()));
+					resolve(results);
+					triggerUpdateDecorations();
+				} else {
+					const errorResult = createErrorAssembly(
+						'AL Test Runner Timeout',
+						'TimeoutError',
+						'Test Execution Timeout',
+						'Test results file was not created. Check the terminal output for errors.'
+					);
+					resolve([errorResult]);
+				}
+			});
+		} catch (error) {
+			const errorResult = createErrorAssembly(
+				'AL Test Runner Execution Error',
+				'ExecutionError',
+				'Command Execution Failed',
+				error instanceof Error ? error.message : String(error)
+			);
+			resolve([errorResult]);
+		}
 	});
 }
 
