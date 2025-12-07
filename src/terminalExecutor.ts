@@ -1,7 +1,4 @@
 import * as vscode from 'vscode';
-import { existsSync, unlinkSync } from 'fs';
-import { getCurrentWorkspaceConfig } from './config';
-import * as types from './types';
 
 /**
  * Options for executing PowerShell commands in the terminal
@@ -64,8 +61,6 @@ export async function executeWithShellIntegration(
 	command: string,
 	options: TerminalExecutionOptions
 ): Promise<void> {
-	const config = getCurrentWorkspaceConfig();
-
 	// Show terminal if requested (preserves focus with true parameter)
 	if (options.showTerminal) {
 		terminal.show(true);

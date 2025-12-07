@@ -63,7 +63,7 @@ suite('Terminal Integration Tests', () => {
 
     suite('Terminal Line Wrapping Tests', () => {
         test('Parser handles single unwrapped line correctly', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -77,7 +77,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles line wrapped at terminal width (\\r continuation)', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -91,7 +91,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles multiple consecutive wrapped lines', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -104,7 +104,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles wrapped lines split across multiple data chunks', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -117,7 +117,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles incomplete line in buffer', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -132,7 +132,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles line ending with \\r but no continuation yet (buffering)', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -148,7 +148,7 @@ suite('Terminal Integration Tests', () => {
 
     suite('ANSI Color Code Tests', () => {
         test('Parser strips basic ANSI color codes from output', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -160,7 +160,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles multiple ANSI codes in single line', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -171,7 +171,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles ANSI codes with wrapped lines', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -183,7 +183,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles ANSI codes split across data chunks', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -195,7 +195,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles complex ANSI sequences (foreground + background)', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -207,7 +207,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles 256-color ANSI codes', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -219,7 +219,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles RGB ANSI codes', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -233,7 +233,7 @@ suite('Terminal Integration Tests', () => {
 
     suite('Combined Line Wrap + Color Tests', () => {
         test('Parser handles wrapped line with ANSI codes before wrap point', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -244,7 +244,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles wrapped line with ANSI codes after wrap point', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -255,7 +255,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles wrapped line with ANSI codes spanning wrap point', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -267,7 +267,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles multiple wraps with interspersed ANSI codes', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -278,7 +278,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles ANSI code split by wrap (code before \\r, continuation after)', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -292,7 +292,7 @@ suite('Terminal Integration Tests', () => {
 
     suite('Edge Case Tests', () => {
         test('Parser handles empty data chunks', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -304,7 +304,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles data chunks with only whitespace', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -316,7 +316,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles very long lines without wrapping', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -341,7 +341,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles chunks arriving character-by-character', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -360,7 +360,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles warning messages with ANSI codes', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -372,7 +372,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles wrapped warning messages', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -384,7 +384,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles failure messages with wrapped stack traces', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -399,7 +399,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles codeunit transition with wrapped output', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
 
             // Create second codeunit
             const codeunit2 = testController.createTestItem(
@@ -427,7 +427,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles mixed \\r\\n and \\n line endings', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -529,7 +529,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles real failure output with error details', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -551,7 +551,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles real output with terminal width wrapping (120 chars)', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -571,7 +571,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles real colored output from PowerShell', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -591,7 +591,7 @@ suite('Terminal Integration Tests', () => {
         });
 
         test('Parser handles chunked arrival pattern from real terminal', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             testRun = createTestRun([codeunit]);
             const parser = createOutputParser(testRun, testRequest);
 
@@ -709,7 +709,7 @@ Setting test codeunit range ''
         });
 
         test('Parser correctly identifies test function lines in real output', () => {
-            const { codeunit, test1 } = createMockTestStructure();
+            const { codeunit } = createMockTestStructure();
             const test2 = testController.createTestItem('70450.TestAuthorISNIValidation', 'TestAuthorISNIValidation', undefined);
             codeunit.children.add(test2);
 

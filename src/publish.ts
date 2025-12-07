@@ -6,7 +6,7 @@ import { getALTestRunnerConfig, getALTestRunnerPath, getCurrentWorkspaceConfig, 
 import { failedToPublishMessage } from './constants';
 import { getALTestRunnerTerminal } from './extension';
 import { awaitFileExistence } from './file';
-import { sendALCommandPublishError, sendDebugEvent, sendFailedToPublishError, sendNoTestFolderNameError } from './telemetry';
+import { sendALCommandPublishError, sendDebugEvent, sendFailedToPublishError } from './telemetry';
 import { PublishResult, PublishType } from "./types";
 
 let shouldPublishApp: Boolean = false;
@@ -40,7 +40,7 @@ export function publishApp(publishType: PublishType): Promise<PublishResult> {
             } else {
                 const resultExists = await awaitFileExistence(getPublishCompletionPath(), getCurrentWorkspaceConfig().publishTimeout);
                 if (resultExists) {
-                    const content = readFileSync(getPublishCompletionPath(), { encoding: 'utf-8' })
+                    const content = readFileSync(getPublishCompletionPath(), { encoding: 'utf-8' });
                     success = content.trim() === '1';
                     if (!success) {
                         message = content;
