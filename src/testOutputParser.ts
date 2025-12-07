@@ -7,6 +7,14 @@ import { getTestCodeunitsIncludedInRequest } from './testController';
 // Track which test items have been marked with results by the real-time parser
 const markedTestItems = new Set<vscode.TestItem>();
 
+// Parser state machine states
+enum ParserState {
+    IDLE = 'IDLE',
+    CODEUNIT_RUNNING = 'CODEUNIT_RUNNING',
+    COLLECTING_ERROR_MESSAGE = 'COLLECTING_ERROR_MESSAGE',
+    COLLECTING_CALLSTACK = 'COLLECTING_CALLSTACK'
+}
+
 /**
  * Creates a parser that processes terminal output in real-time and updates test run status.
  * The parser handles chunked data from the terminal shell integration, buffers incomplete lines,
@@ -17,12 +25,12 @@ const markedTestItems = new Set<vscode.TestItem>();
  * @returns A function that processes terminal output data chunks
  */
 export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunRequest): (data: string) => void {
-    let currentCodeunit: vscode.TestItem | undefined;
-    let hasStartedFirstCodeunit = false;
-    let currentFailedTest: vscode.TestItem | undefined;
-    let failureMessage = '';
-    let buffer = ''; // Buffer for incomplete lines
-    let pendingCodeunitSwitch: vscode.TestItem | undefined; // Codeunit to switch to after processing current batch
+    // Parser state
+    let state: ParserState = ParserState.IDLE;
+    let currentCodeunit: vscode.TestItem | undefined; // Codeunit whose results are being reported
+    let runningCodeunit: vscode.TestItem | undefined; // Codeunit currently executing in BC
+    let pendingFailedTest: vscode.TestItem | undefined;
+    let errorMessageBuffer = '';
 
     // Get the tests to start for a given codeunit based on what's included in the request
     const getTestsToStart = (codeunit: vscode.TestItem): vscode.TestItem[] => {
@@ -47,7 +55,7 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         return testsToStart;
     };
 
-    // Get test codeunits being executed, sorted by object ID (BC runs them in ID order, not alphabetical)
+    // Get test codeunits being executed, sorted by object ID (BC runs them in ID order)
     const getSortedCodeunits = (): vscode.TestItem[] => {
         const codeunits: vscode.TestItem[] = [];
 
@@ -87,152 +95,251 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         return codeunits;
     };
 
-    const processLine = (line: string) => {
-        // Strip ANSI escape codes (color formatting and any remaining cursor codes)
-        const cleanLine = line.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][0-9;]*\x07/g, '');
+    // Find a test by name in the given codeunit
+    const findTestInCodeunit = (codeunit: vscode.TestItem, testName: string): vscode.TestItem | undefined => {
+        let found: vscode.TestItem | undefined;
+        codeunit.children.forEach(test => {
+            if (test.label === testName) {
+                found = test;
+            }
+        });
+        return found;
+    };
 
-        // Check for PowerShell warnings - any line with "AL Test Runner WARNING:"
+    // Find a codeunit by ID and name
+    const findCodeunit = (codeunitId: string, codeunitName: string): vscode.TestItem | undefined => {
+        const sortedCodeunits = getSortedCodeunits();
+        const fullName = `${codeunitId} ${codeunitName}`;
+
+        for (const testItem of sortedCodeunits) {
+            if (testItem.label === fullName ||
+                testItem.label === codeunitName ||
+                testItem.id.includes(codeunitId)) {
+                return testItem;
+            }
+        }
+        return undefined;
+    };
+
+    // Get the next codeunit after the given one
+    const getNextCodeunit = (current: vscode.TestItem): vscode.TestItem | undefined => {
+        const sortedCodeunits = getSortedCodeunits();
+        const currentIndex = sortedCodeunits.indexOf(current);
+        if (currentIndex >= 0 && currentIndex + 1 < sortedCodeunits.length) {
+            return sortedCodeunits[currentIndex + 1];
+        }
+        return undefined;
+    };
+
+    // Start all tests in a codeunit (mark as "started" in UI)
+    const startCodeunitTests = (codeunit: vscode.TestItem): void => {
+        const testsToStart = getTestsToStart(codeunit);
+        testsToStart.forEach(test => {
+            if (!markedTestItems.has(test)) {
+                run.started(test);
+            }
+        });
+    };
+
+    // Finalize a failed test with collected error message
+    const finalizeFailedTest = (): void => {
+        if (pendingFailedTest) {
+            const errorMsg = errorMessageBuffer.trim() || 'Test failed';
+            run.failed(pendingFailedTest, new vscode.TestMessage(errorMsg));
+            markedTestItems.add(pendingFailedTest);
+            pendingFailedTest = undefined;
+            errorMessageBuffer = '';
+            state = ParserState.CODEUNIT_RUNNING;
+        }
+    };
+
+
+
+    /**
+     * Processes terminal data with cursor positioning codes and returns complete lines.
+     * For wrapped terminals, text is split across multiple lines with cursor positioning.
+     * Lines starting with cursor positioning codes (\x1b[row;colH) are continuations.
+     * Continuation fragments typically have 1-3 character overlap with the previous fragment
+     * (showing what was already visible when cursor repositions).
+     */
+    const processTerminalData = (data: string): string[] => {
+        // Strip OSC sequences (shell integration markers)
+        let text = data.replace(/\x1b\][^\x07]*\x07/g, '');
+
+        // Split into raw lines
+        const rawLines = text.split('\n');
+        const lines: string[] = [];
+        let currentLine = '';
+
+        for (const rawLine of rawLines) {
+            // Remove \r and color codes, but keep cursor positioning for detection
+            const lineWithoutColors = rawLine
+                .replace(/\r/g, '')
+                .replace(/\x1b\[[0-9;]*m/g, '');  // Remove color codes only
+
+            // Check if line starts with cursor positioning (continuation line)
+            const isContinuation = /^\x1b\[[0-9;]+H/.test(lineWithoutColors);
+
+            if (isContinuation) {
+                // Strip the cursor positioning
+                const fragment = lineWithoutColors.replace(/\x1b\[[0-9;]+H/, '').trimEnd();
+
+                // Detect overlap: check if first 1-3 chars of fragment match end of current line
+                let overlapLength = 0;
+                for (let len = 1; len <= Math.min(3, fragment.length, currentLine.length); len++) {
+                    if (currentLine.endsWith(fragment.substring(0, len))) {
+                        overlapLength = len;
+                    }
+                }
+
+                // Append fragment, skipping the overlapping portion
+                currentLine += fragment.substring(overlapLength);
+            } else {
+                // New logical line - flush previous and start new
+                const textOnly = lineWithoutColors.trimEnd();
+                if (textOnly || currentLine) {
+                    if (currentLine) {
+                        lines.push(currentLine);
+                    }
+                    currentLine = textOnly;
+                }
+            }
+        }
+
+        // Flush any remaining content
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+
+        return lines;
+    };
+
+    /**
+     * Process a single complete line of output
+     */
+    const processLine = (line: string): void => {
+        // Strip any remaining ANSI codes
+        const cleanLine = line.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '');
+
+        // Check for PowerShell warnings
         const warningMatch = cleanLine.match(/AL Test Runner WARNING: (.+)/);
         if (warningMatch) {
             outputWriter.writeError(warningMatch[1]);
             return;
         }
 
-        // Look for "Connecting to" to start all tests in the first codeunit being executed
-        if (!hasStartedFirstCodeunit && /^Connecting to https?:\/\//.test(cleanLine)) {
-            const sortedCodeunits = getSortedCodeunits();
-            if (sortedCodeunits.length > 0) {
-                currentCodeunit = sortedCodeunits[0];
-                hasStartedFirstCodeunit = true;
+        // STATE: IDLE - Waiting for test execution to start
+        if (state === ParserState.IDLE) {
+            // Look for "Connecting to" - first codeunit starts executing
+            if (/^Connecting to https?:\/\//.test(cleanLine)) {
+                const sortedCodeunits = getSortedCodeunits();
+                if (sortedCodeunits.length > 0) {
+                    runningCodeunit = sortedCodeunits[0];
+                    startCodeunitTests(runningCodeunit);
 
-                // Switch focus to Test Results panel now that tests are actually starting
-                vscode.commands.executeCommand('workbench.panel.testResults.view.focus');
+                    // Switch focus to Test Results panel
+                    vscode.commands.executeCommand('workbench.panel.testResults.view.focus');
+                }
+                return;
+            }
+        }
 
-                const testsToStart = getTestsToStart(currentCodeunit);
-                testsToStart.forEach(test => {
-                    run.started(test);
-                });
+        // Check for codeunit completion line (can appear in any state)
+        // Format: "  Codeunit 70450 LIB Library Member Tests Success (3.096 seconds)"
+        const codeunitMatch = cleanLine.match(/^\s+Codeunit\s+(\d+)\s+(.+?)\s+(Success|Failure)\s+\(/);
+        if (codeunitMatch) {
+            // Finalize any pending failed test from previous codeunit
+            finalizeFailedTest();
+
+            const codeunitId = codeunitMatch[1];
+            const codeunitName = codeunitMatch[2].trim();
+
+            // This codeunit just finished - its results follow
+            const finishedCodeunit = findCodeunit(codeunitId, codeunitName);
+            if (finishedCodeunit) {
+                currentCodeunit = finishedCodeunit;
+
+                // Start next codeunit (BC just started executing it)
+                const nextCodeunit = getNextCodeunit(finishedCodeunit);
+                if (nextCodeunit) {
+                    runningCodeunit = nextCodeunit;
+                    startCodeunitTests(nextCodeunit);
+                }
+
+                state = ParserState.CODEUNIT_RUNNING;
             }
             return;
         }
 
-        // Process test results (before handling codeunit transitions)
-        // Look for individual test results: "    Testfunction TestCreateLibraryMember Success (0.02 seconds)"
-        const testMatch = cleanLine.match(/^\s+Testfunction\s+(.+?)\s+(Success|Failure)\s+\(/);
-        if (testMatch) {
-            const testName = testMatch[1];
-            const testResult = testMatch[2];
+        // STATE: CODEUNIT_RUNNING or COLLECTING_* - Process test results
+        if (state === ParserState.CODEUNIT_RUNNING ||
+            state === ParserState.COLLECTING_ERROR_MESSAGE ||
+            state === ParserState.COLLECTING_CALLSTACK) {
 
-            // If we don't have a current codeunit yet, we might need to wait for it
-            if (!currentCodeunit) {
+            // Check for test function result
+            // Format: "    Testfunction TestCreateLibraryMember Success (0.043 seconds)"
+            const testMatch = cleanLine.match(/^\s+Testfunction\s+(.+?)\s+(Success|Failure)\s+\(/);
+            if (testMatch) {
+                // Finalize any pending failed test before processing this one
+                finalizeFailedTest();
+
+                const testName = testMatch[1];
+                const testResult = testMatch[2];
+
+                if (currentCodeunit) {
+                    const test = findTestInCodeunit(currentCodeunit, testName);
+                    if (test) {
+                        if (testResult === 'Success') {
+                            run.passed(test);
+                            markedTestItems.add(test);
+                        } else {
+                            // Store failed test and prepare to collect error details
+                            pendingFailedTest = test;
+                            errorMessageBuffer = '';
+                            state = ParserState.COLLECTING_ERROR_MESSAGE;
+                        }
+                    }
+                }
                 return;
             }
 
-            // Find the test item and mark it with result
-            currentCodeunit.children.forEach(test => {
-                if (test.label === testName) {
-                    if (testResult === 'Success') {
-                        run.passed(test);
-                        markedTestItems.add(test);
-                    } else {
-                        // Store failed test to collect error details
-                        currentFailedTest = test;
-                        failureMessage = '';
+            // Check for error section header (6-space indent)
+            if (cleanLine.match(/^\s{6}Error:/)) {
+                state = ParserState.COLLECTING_ERROR_MESSAGE;
+                errorMessageBuffer = ''; // Start fresh
+                return;
+            }
+
+            // Check for call stack header (6-space indent)
+            if (cleanLine.match(/^\s{6}Call Stack:/)) {
+                state = ParserState.COLLECTING_CALLSTACK;
+                if (errorMessageBuffer) {
+                    errorMessageBuffer += '\n';
+                }
+                return;
+            }
+
+            // Collect error/callstack content (8-space indent)
+            if (state === ParserState.COLLECTING_ERROR_MESSAGE || state === ParserState.COLLECTING_CALLSTACK) {
+                if (cleanLine.match(/^\s{8}\S/)) {
+                    const messageLine = cleanLine.trim();
+                    if (messageLine) {
+                        errorMessageBuffer += messageLine + '\n';
                     }
-                }
-            });
-            return;
-        }
-
-        // Collect failure details - Error line starts with "      Error:"
-        if (currentFailedTest && cleanLine.match(/^\s{6}Error:/)) {
-            failureMessage = '';
-            return;
-        }
-
-        // Collect Call Stack - starts with "      Call Stack:"
-        if (currentFailedTest && cleanLine.match(/^\s{6}Call Stack:/)) {
-            if (failureMessage) {
-                failureMessage += '\n';
-            }
-            return;
-        }
-
-        // Collect failure message lines (indented with 8 spaces)
-        if (currentFailedTest && cleanLine.match(/^\s{8}\S/)) {
-            const messageLine = cleanLine.trim();
-            if (messageLine) {
-                failureMessage += messageLine + '\n';
-            }
-            return;
-        }
-
-        // When we hit the next test function or codeunit, mark the failed test with collected details
-        if (currentFailedTest && (cleanLine.match(/^\s+Codeunit\s+\d+/) || cleanLine.match(/^\s+Testfunction\s+/))) {
-            const errorMsg = failureMessage.trim() || 'Test failed';
-            run.failed(currentFailedTest, new vscode.TestMessage(errorMsg));
-            markedTestItems.add(currentFailedTest);
-            currentFailedTest = undefined;
-            failureMessage = '';
-
-            // Process this line again since it might be the next test starting
-            processLine(line);
-            return;
-        }
-
-        // Look for completed codeunit output: "  Codeunit 70450 LIB Library Member Tests Success (0.044 seconds)"
-        // Don't switch immediately - mark it as pending and switch after processing all lines in this batch
-        const codeunitMatch = cleanLine.match(/^\s+Codeunit\s+(\d+)\s+(.+?)\s+(Success|Failure)\s+\(/);
-        if (codeunitMatch) {
-            const codeunitId = codeunitMatch[1];
-            const codeunitName = codeunitMatch[2].trim();
-            const fullName = `${codeunitId} ${codeunitName}`;
-
-            const sortedCodeunits = getSortedCodeunits();
-            let currentIndex = -1;
-
-            // Find which codeunit just completed
-            for (let i = 0; i < sortedCodeunits.length; i++) {
-                const testItem = sortedCodeunits[i];
-                if (testItem.label === fullName || testItem.label === codeunitName || testItem.id.includes(codeunitId)) {
-                    currentCodeunit = testItem;
-                    currentIndex = i;
-                    break;
+                    return;
                 }
             }
-
-            // Mark the next codeunit as pending (don't switch yet - there may be more test results in this batch)
-            if (currentIndex >= 0 && currentIndex + 1 < sortedCodeunits.length) {
-                pendingCodeunitSwitch = sortedCodeunits[currentIndex + 1];
-            }
-            return;
         }
     };
 
     return (data: string) => {
-        // Add incoming data to buffer
-        buffer += data;
-
-        // Split on newlines
-        const lines = buffer.split('\n');
-
-        // Keep the last incomplete line in the buffer
-        buffer = lines.pop() || '';
+        // Process terminal data to handle wrapped output
+        const completeLines = processTerminalData(data);
 
         // Process each complete line
-        lines.forEach(line => {
+        completeLines.forEach((line) => {
             processLine(line);
         });
-
-        // After processing all lines in this batch, perform pending codeunit switch
-        if (pendingCodeunitSwitch) {
-            currentCodeunit = pendingCodeunitSwitch;
-            const testsToStart = getTestsToStart(currentCodeunit);
-            testsToStart.forEach(test => {
-                run.started(test);
-            });
-            pendingCodeunitSwitch = undefined;
-        }
     };
 }
 
