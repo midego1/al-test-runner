@@ -6,7 +6,7 @@ import { ALTestAssembly, ALTestResult, ALMethod, DisabledTest, ALFile, launchCon
 import * as path from 'path';
 import { sendDebugEvent, sendTestDebugStartEvent, sendTestRunFinishedEvent, sendTestRunStartEvent } from './telemetry';
 import { buildTestCoverageFromTestItem } from './testCoverage';
-import { getALFilesInCoverage, getCoverageEnabledForTestRunRequest, getFileCoverage, getStatementCoverage, readCodeCoverage, saveAllTestsCodeCoverage, saveTestRunCoverage } from './coverage';
+import { getALFilesInCoverage, getCoverageEnabledForTestRunRequest, getFileCoverage, getStatementCoverage, readCodeCoverage, saveAllTestsCodeCoverage, saveTestRunCoverage, updateCodeCoverageDecoration } from './coverage';
 import { readyToDebug } from './debug';
 import { discoverPageScripts, runPageScript, testItemIsPageScript } from './pageScripting';
 import { createOutputParser, testItemWasMarkedByParser, clearMarkedTestItems } from './testOutputParser';
@@ -116,7 +116,10 @@ export async function runTestHandler(request: vscode.TestRunRequest) {
         let results: ALTestAssembly[];
         if (request.include === undefined) {
             results = await runAllTests(request, run);
-            await saveAllTestsCodeCoverage();
+            if (getCoverageEnabledForTestRunRequest(request)) {
+                await saveAllTestsCodeCoverage();
+                updateCodeCoverageDecoration();
+            }
         }
         else if (request.include.length > 1) {
             results = await runSelectedTests(request, run);
@@ -151,6 +154,7 @@ export async function runTestHandler(request: vscode.TestRunRequest) {
             getALFilesInCoverage(codeCoverage).forEach(alFile => {
                 run.addCoverage(getFileCoverage(codeCoverage, alFile));
             });
+            updateCodeCoverageDecoration();
         }
 
         if (results.length > 0) {

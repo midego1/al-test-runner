@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getALObjectOfDocument, getALFileForALObject, getTestFolderPath } from './alFileHelper';
 import { copyFileSync, existsSync, readFileSync } from 'fs';
 import { ALFile, ALObject, CodeCoverageDisplay, CodeCoverageLine, CodeCoverageObject, enableCodeCoverage } from './types';
-import { activeEditor, passingTestDecorationType, outputWriter } from './extension';
+import { activeEditor, codeCoverageDecorationType, outputWriter } from './extension';
 import { join, basename, dirname } from 'path';
 import { getALTestRunnerConfig, getCurrentWorkspaceConfig } from './config';
 import { testItemIsPageScript } from './pageScripting';
@@ -32,7 +32,7 @@ export async function updateCodeCoverageDecoration() {
         });
     }
 
-    activeEditor.setDecorations(passingTestDecorationType, testedRanges);
+    activeEditor.setDecorations(codeCoverageDecorationType, testedRanges);
 }
 
 export function readCodeCoverage(codeCoverageDisplay?: CodeCoverageDisplay, testRun?: vscode.TestRun): Promise<CodeCoverageLine[]> {
@@ -65,6 +65,7 @@ export async function getCodeCoveragePath(codeCoverageType?: CodeCoverageDisplay
             const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
             if (path) {
                 resolve(join(dirname(path), 'codeCoverageAll.json'));
+                return;
             }
         }
         let config = vscode.workspace.getConfiguration('al-test-runner');

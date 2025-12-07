@@ -27,6 +27,7 @@ const config = vscode.workspace.getConfiguration('al-test-runner');
 const passingTestColor = 'rgba(' + config.passingTestsColor.red + ',' + config.passingTestsColor.green + ',' + config.passingTestsColor.blue + ',' + config.passingTestsColor.alpha + ')';
 const failingTestColor = 'rgba(' + config.failingTestsColor.red + ',' + config.failingTestsColor.green + ',' + config.failingTestsColor.blue + ',' + config.failingTestsColor.alpha + ')';
 const untestedTestColor = 'rgba(' + config.untestedTestsColor.red + ',' + config.untestedTestsColor.green + ',' + config.untestedTestsColor.blue + ',' + config.untestedTestsColor.alpha + ')';
+const coveredLinesColor = 'rgba(' + config.coveredLinesColor.red + ',' + config.coveredLinesColor.green + ',' + config.coveredLinesColor.blue + ',' + config.coveredLinesColor.alpha + ')';;
 export const outputWriter: OutputWriter = getOutputWriter(vscode.workspace.getConfiguration('al-test-runner').testOutputLocation);
 export const channelWriter: OutputWriter = getOutputWriter(types.OutputType.Channel);
 
@@ -42,6 +43,12 @@ if (testFolderPath) {
 
 export const passingTestDecorationType = vscode.window.createTextEditorDecorationType({
 	backgroundColor: passingTestColor
+});
+
+export const codeCoverageDecorationType = vscode.window.createTextEditorDecorationType({
+	isWholeLine: true,
+	overviewRulerColor: coveredLinesColor,
+	backgroundColor: coveredLinesColor
 });
 
 const failingTestDecorationType = vscode.window.createTextEditorDecorationType({
@@ -88,9 +95,7 @@ export function activate(context: vscode.ExtensionContext) {
 			if (documentIsTestCodeunit(activeEditor!.document)) {
 				triggerUpdateDecorations();
 			}
-			else {
-				updateCodeCoverageDecoration();
-			}
+			updateCodeCoverageDecoration();
 		}
 	}, null, context.subscriptions);
 
