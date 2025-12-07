@@ -536,11 +536,6 @@ suite('Terminal Width Variation Tests', () => {
         assert.ok(tracker.started.includes('TestCreateAuthor'), 'Should start TestCreateAuthor (Codeunit 70451)');
         assert.ok(tracker.started.includes('TestCreateBook'), 'Should start TestCreateBook (Codeunit 70452)');
         assert.ok(tracker.started.includes('TestCreateBookLoan'), 'Should start TestCreateBookLoan (Codeunit 70453)');
-
-        console.log('\n=== Wide Terminal Test Results ===');
-        console.log(`Started: ${tracker.started.length}, Passed: ${tracker.passed.length}, Failed: ${tracker.failed.length}`);
-        console.log(`Failed test: ${tracker.failed[0].testName}`);
-        console.log('===================================\n');
     });
 
     test('Parser handles wrapped terminal output (4 codeunits, 22 tests, 1 failure)', () => {
@@ -569,11 +564,6 @@ suite('Terminal Width Variation Tests', () => {
         assert.ok(tracker.started.includes('TestCreateAuthor'), 'Should start TestCreateAuthor (Codeunit 70451)');
         assert.ok(tracker.started.includes('TestCreateBook'), 'Should start TestCreateBook (Codeunit 70452)');
         assert.ok(tracker.started.includes('TestCreateBookLoan'), 'Should start TestCreateBookLoan (Codeunit 70453)');
-
-        console.log('\n=== Wrapped Terminal Test Results ===');
-        console.log(`Started: ${tracker.started.length}, Passed: ${tracker.passed.length}, Failed: ${tracker.failed.length}`);
-        console.log(`Failed test: ${tracker.failed[0].testName}`);
-        console.log('======================================\n');
     });
 
     test('Wide and wrapped terminal outputs produce identical results', () => {
@@ -622,11 +612,5 @@ suite('Terminal Width Variation Tests', () => {
             // Note: Error messages might have slight formatting differences due to line wrapping, so we just check for key content
             assert.ok(tracker2.failed[index].errorMessage.includes('This is an error'), `Failed test ${index} should contain error message`);
         });
-
-        console.log('\n=== Terminal Width Comparison ===');
-        console.log('Wide Terminal:    ', `Started: ${tracker1.started.length}, Passed: ${tracker1.passed.length}, Failed: ${tracker1.failed.length}`);
-        console.log('Wrapped Terminal: ', `Started: ${tracker2.started.length}, Passed: ${tracker2.passed.length}, Failed: ${tracker2.failed.length}`);
-        console.log('Result: IDENTICAL ✓');
-        console.log('==================================\n');
     });
 });

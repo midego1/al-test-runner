@@ -694,18 +694,10 @@ Setting test codeunit range ''
             // Parse the output
             parser(realWorldOutput);
 
-            // Log what happened
-            console.log('\n=== Test Run Call Log ===');
-            callLog.forEach(entry => console.log(entry));
-            console.log('=========================\n');
-
             // Count the different types of calls
             const startedCount = callLog.filter(e => e.includes('started:')).length;
             const passedCount = callLog.filter(e => e.includes('passed:')).length;
             const failedCount = callLog.filter(e => e.includes('failed:')).length;
-
-            console.log(`Total: ${startedCount} started, ${passedCount} passed, ${failedCount} failed`);
-            console.log(`Expected: 9 started, 8 passed, 1 failed\n`);
 
             // Verify parser doesn't crash and handles the output structure
             assert.ok(true, 'Parser handled complete real-world output without errors');
@@ -771,7 +763,6 @@ Setting test codeunit range ''
             // Next test should trigger marking the failed test
             parser('    Testfunction TestAuthorInvalidISNI Success (0.01 seconds)\n');
 
-            console.log('Tracking log:', trackingLog.join(', '));
             assert.ok(trackingLog.includes('failed:TestAuthorISNIValidation'), 'Should have marked test as failed');
             assert.ok(trackingLog.includes('passed:TestAuthorInvalidISNI'), 'Should have marked next test as passed');
         });
@@ -804,7 +795,6 @@ Setting test codeunit range ''
             parser('    Testfunction TestWithVeryLongNameThatExceedsTerminalWidth Success (0.5 seconds)\n');
             parser('    Testfunction TestShort Success (0.1 seconds)\n');
 
-            console.log('Wrapped test log:', trackingLog.join(', '));
             assert.ok(trackingLog.includes('started:TestWithVeryLongNameThatExceedsTerminalWidth'), 'Should have started wrapped test');
             assert.ok(trackingLog.includes('passed:TestWithVeryLongNameThatExceedsTerminalWidth'), 'Should have passed wrapped test');
             assert.ok(trackingLog.includes('passed:TestShort'), 'Should have passed short test');
