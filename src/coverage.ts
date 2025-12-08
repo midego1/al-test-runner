@@ -91,7 +91,7 @@ export async function saveAllTestsCodeCoverage(): Promise<void> {
             path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
             if (path) {
                 if (!existsSync(path)) {
-                    outputWriter.writeError(`Code coverage file was not generated: ${path}. This may indicate that:\n  - The Test Runner Service app is not installed in BC (run: AL Test Runner: Install Test Runner Service)\n  - The testRunnerServiceUrl in .altestrunner/config.json is incorrect or unreachable\n  - The codeCoveragePath in .altestrunner/config.json and "al-test-runner.codeCoveragePath" in VS Code settings must both point to the same file\n  - The PowerShell test runner failed to download coverage data`);
+                    outputWriter.writeError(`Code coverage file was not generated: ${path}. This may indicate that:\n  - The Test Runner Service app is not installed in BC (run: AL Test Runner: Install Test Runner Service)\n  - The testRunnerServiceUrl in .altestrunner/config.json is incorrect or unreachable\n  - The codeCoveragePath in .altestrunner/config.json and "al-test-runner.codeCoveragePath" in VS Code settings do not point to the same file\n  - The PowerShell test runner failed to download coverage data`);
                     resolve();
                     return;
                 }
