@@ -186,8 +186,7 @@ function Invoke-RunTests {
         # Write error result to last.xml
         $errorXml | Out-File -FilePath $LastResultFile -Encoding UTF8 -Force
 
-        # Re-throw to maintain error visibility
-        throw
+        # Do not re-throw - error is already recorded in XML for processing
     }
 }
 

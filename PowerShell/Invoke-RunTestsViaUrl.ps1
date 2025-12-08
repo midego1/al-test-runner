@@ -135,7 +135,7 @@ function Invoke-RunTestsViaUrl {
             -testPage 130455 `
             -connectFromHost:$true `
             -CodeCoverageTrackingType 'Disabled' `
-            -ProduceCodeCoverageMap 'Disabled'
+            -ProduceCodeCoverageMap 'Disabled' | Out-Null
 
         if ($GetCodeCoverage.IsPresent) {
             Get-CodeCoverage -LaunchConfig $LaunchConfig
@@ -185,8 +185,7 @@ function Invoke-RunTestsViaUrl {
         # Write error result to both result file and last.xml
         $errorXml | Out-File -FilePath $LastResultFile -Encoding UTF8 -Force
 
-        # Re-throw to maintain error visibility
-        throw
+        # Do not re-throw - error is already recorded in XML for processing
     }
 }
 
