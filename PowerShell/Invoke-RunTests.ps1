@@ -158,8 +158,9 @@ function Invoke-RunTests {
         Write-Host "Error during test execution: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "Stack trace: $($_.ScriptStackTrace)" -ForegroundColor Red
 
-        $ErrorMessage = $_.Exception.Message -replace '"', '&quot;' -replace '<', '&lt;' -replace '>', '&gt;' -replace '&', '&amp;'
-        $ErrorStackTrace = $_.ScriptStackTrace -replace '"', '&quot;' -replace '<', '&lt;' -replace '>', '&gt;' -replace '&', '&amp;'
+        # Escape XML special characters (ampersand must be first to avoid double-escaping)
+        $ErrorMessage = $_.Exception.Message -replace '&', '&amp;' -replace '<', '&lt;' -replace '>', '&gt;' -replace '"', '&quot;'
+        $ErrorStackTrace = $_.ScriptStackTrace -replace '&', '&amp;' -replace '<', '&lt;' -replace '>', '&gt;' -replace '"', '&quot;'
 
         $errorXml = @"
 <?xml version="1.0" encoding="utf-8"?>

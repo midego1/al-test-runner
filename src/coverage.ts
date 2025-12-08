@@ -38,8 +38,8 @@ export async function updateCodeCoverageDecoration() {
 export function readCodeCoverage(codeCoverageDisplay?: CodeCoverageDisplay, testRun?: vscode.TestRun): Promise<CodeCoverageLine[]> {
     return new Promise(async (resolve) => {
         let codeCoverage: CodeCoverageLine[] = [];
+        let codeCoveragePath: string | null | undefined;
         try {
-            let codeCoveragePath;
             if (testRun) {
                 codeCoveragePath = getCoveragePathForTestRun(testRun);
             }
@@ -52,7 +52,9 @@ export function readCodeCoverage(codeCoverageDisplay?: CodeCoverageDisplay, test
                 }
             }
         } catch (error) {
-            outputWriter.writeError(`Error reading code coverage: ${error instanceof Error ? error.message : String(error)}`);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const pathInfo = codeCoveragePath || 'unknown path';
+            outputWriter.writeError(`Error reading code coverage from "${pathInfo}": ${errorMsg}`);
         }
 
         resolve(codeCoverage);
@@ -84,8 +86,9 @@ export async function getCodeCoveragePath(codeCoverageType?: CodeCoverageDisplay
 
 export async function saveAllTestsCodeCoverage(): Promise<void> {
     return new Promise(async (resolve, reject) => {
+        let path: string | null = null;
         try {
-            const path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
+            path = await getCodeCoveragePath(CodeCoverageDisplay.Previous);
             if (path) {
                 if (!existsSync(path)) {
                     outputWriter.writeError(`Code coverage file was not generated: ${path}. This may indicate that:\n  - The Test Runner Service app is not installed in BC (run: AL Test Runner: Install Test Runner Service)\n  - The testRunnerServiceUrl in .altestrunner/config.json is incorrect or unreachable\n  - The codeCoveragePath in .altestrunner/config.json and "al-test-runner.codeCoveragePath" in VS Code settings must both point to the same file\n  - The PowerShell test runner failed to download coverage data`);
@@ -103,7 +106,9 @@ export async function saveAllTestsCodeCoverage(): Promise<void> {
             }
             resolve();
         } catch (error) {
-            outputWriter.writeError(`Error saving code coverage: ${error instanceof Error ? error.message : String(error)}`);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const pathInfo = path || 'unknown path';
+            outputWriter.writeError(`Error saving code coverage to "${pathInfo}": ${errorMsg}`);
             resolve(); // Resolve instead of reject to prevent unhandled promise rejection
         }
     });
@@ -124,7 +129,9 @@ export async function saveTestRunCoverage(testRun: vscode.TestRun): Promise<void
             }
             resolve();
         } catch (error) {
-            outputWriter.writeError(`Error saving test run coverage: ${error instanceof Error ? error.message : String(error)}`);
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            const testRunCoveragePath = getCoveragePathForTestRun(testRun);
+            outputWriter.writeError(`Error saving test run coverage to "${testRunCoveragePath}": ${errorMsg}`);
             resolve(); // Resolve instead of reject to prevent unhandled promise rejection
         }
     });

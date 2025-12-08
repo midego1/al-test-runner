@@ -105,8 +105,17 @@ export async function executeWithShellIntegration(
 		if (options.onOutput) {
 			(async () => {
 				try {
-					for await (const data of execution.read()) {
-						options.onOutput!(data);
+					// Set up a timeout to prevent hanging indefinitely
+					const timeout = setTimeout(() => {
+						console.warn('Terminal output read timeout after 5 minutes');
+					}, 5 * 60 * 1000); // 5 minutes
+
+					try {
+						for await (const data of execution.read()) {
+							options.onOutput!(data);
+						}
+					} finally {
+						clearTimeout(timeout);
 					}
 				} catch (error) {
 					console.error('Error reading terminal output:', error);

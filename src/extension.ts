@@ -19,6 +19,7 @@ import { registerCommands } from './commands';
 import { createHEADFileWatcherForTestWorkspaceFolder } from './git';
 import { createPerformanceStatusBarItem } from './performance';
 import { executeWithShellIntegration } from './terminalExecutor';
+import { ensureTestCoverageLoaded } from './testCoverage';
 
 let terminal: vscode.Terminal;
 export let activeEditor = vscode.window.activeTextEditor;
@@ -36,14 +37,14 @@ function getTestFolderPath(): string | undefined {
 	return getTestFolderFromConfig(config) || getWorkspaceFolder();
 }
 
-export const passingTestDecorationType = vscode.window.createTextEditorDecorationType({
-	backgroundColor: passingTestColor
-});
-
 export const codeCoverageDecorationType = vscode.window.createTextEditorDecorationType({
 	isWholeLine: true,
 	overviewRulerColor: coveredLinesColor,
 	backgroundColor: coveredLinesColor
+});
+
+const passingTestDecorationType = vscode.window.createTextEditorDecorationType({
+	backgroundColor: passingTestColor
 });
 
 const failingTestDecorationType = vscode.window.createTextEditorDecorationType({
@@ -83,6 +84,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(createCodeCoverageStatusBarItem());
 	context.subscriptions.push(createPerformanceStatusBarItem());
+
+	// Pre-load test coverage data asynchronously to avoid delays in code lens provider
+	ensureTestCoverageLoaded().catch(err => {
+		// Silently fail - ensureTestCoverageLoaded handles error display internally
+		console.log('Test coverage pre-load completed (may have been empty or failed)');
+	});
 
 	vscode.window.onDidChangeActiveTextEditor(editor => {
 		activeEditor = editor;

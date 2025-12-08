@@ -32,7 +32,17 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
     let pendingFailedTest: vscode.TestItem | undefined;
     let errorMessageBuffer = '';
 
-    // Get the tests to start for a given codeunit based on what's included in the request
+    /**
+     * Determines which test functions within a codeunit should be marked as "started".
+     * 
+     * Respects the test run request scope:
+     * - If request.include is undefined: all tests in the codeunit
+     * - If the codeunit is included: all its child tests
+     * - Otherwise: only the specific tests that are included in the request
+     * 
+     * @param codeunit - The test codeunit to get tests from
+     * @returns Array of test items that should be started
+     */
     const getTestsToStart = (codeunit: vscode.TestItem): vscode.TestItem[] => {
         const testsToStart: vscode.TestItem[] = [];
 
@@ -55,7 +65,15 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         return testsToStart;
     };
 
-    // Get test codeunits being executed, sorted by object ID (BC runs them in ID order)
+    /**
+     * Gets all test codeunits being executed, sorted by object ID.
+     * 
+     * Business Central executes test codeunits in ascending order by object ID,
+     * so this sorting is critical for predicting which codeunit will run next.
+     * This allows the parser to mark tests as "started" before BC actually begins executing them.
+     * 
+     * @returns Array of test codeunits sorted by their AL object ID
+     */
     const getSortedCodeunits = (): vscode.TestItem[] => {
         const codeunits: vscode.TestItem[] = [];
 
@@ -95,7 +113,13 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         return codeunits;
     };
 
-    // Find a test by name in the given codeunit
+    /**
+     * Finds a test function by name within a specific codeunit.
+     * 
+     * @param codeunit - The codeunit to search within
+     * @param testName - The test function name to find (e.g., "TestCreateLibraryMember")
+     * @returns The matching test item, or undefined if not found
+     */
     const findTestInCodeunit = (codeunit: vscode.TestItem, testName: string): vscode.TestItem | undefined => {
         let found: vscode.TestItem | undefined;
         codeunit.children.forEach(test => {
@@ -106,7 +130,18 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         return found;
     };
 
-    // Find a codeunit by ID and name
+    /**
+     * Finds a test codeunit by its ID and/or name.
+     * 
+     * Matches against multiple possible label formats:
+     * - Full name: "70450 LIB Library Member Tests"
+     * - Just the name: "LIB Library Member Tests"
+     * - ID anywhere in the item ID
+     * 
+     * @param codeunitId - The codeunit object ID (e.g., "70450")
+     * @param codeunitName - The codeunit name (e.g., "LIB Library Member Tests")
+     * @returns The matching test codeunit item, or undefined if not found
+     */
     const findCodeunit = (codeunitId: string, codeunitName: string): vscode.TestItem | undefined => {
         const sortedCodeunits = getSortedCodeunits();
         const fullName = `${codeunitId} ${codeunitName}`;
@@ -121,7 +156,16 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         return undefined;
     };
 
-    // Get the next codeunit after the given one
+    /**
+     * Gets the next codeunit that will execute after the given codeunit.
+     * 
+     * Since BC runs test codeunits in ID order, this function uses the sorted
+     * codeunit list to predict which codeunit BC will execute next. This is used
+     * to preemptively mark tests as "started" in the UI.
+     * 
+     * @param current - The current test codeunit
+     * @returns The next codeunit in execution order, or undefined if current is the last
+     */
     const getNextCodeunit = (current: vscode.TestItem): vscode.TestItem | undefined => {
         const sortedCodeunits = getSortedCodeunits();
         const currentIndex = sortedCodeunits.indexOf(current);
@@ -131,7 +175,15 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         return undefined;
     };
 
-    // Start all tests in a codeunit (mark as "started" in UI)
+    /**
+     * Marks all applicable tests in a codeunit as "started" in the VS Code Test UI.
+     * 
+     * This provides immediate visual feedback that BC has begun executing the codeunit,
+     * even before individual test results are reported. Tests that were already marked
+     * (from a previous run) are skipped to avoid duplicate status updates.
+     * 
+     * @param codeunit - The test codeunit whose tests should be started
+     */
     const startCodeunitTests = (codeunit: vscode.TestItem): void => {
         const testsToStart = getTestsToStart(codeunit);
         testsToStart.forEach(test => {
@@ -141,7 +193,16 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         });
     };
 
-    // Finalize a failed test with collected error message
+    /**
+     * Finalizes a failed test by marking it as failed with the accumulated error message.
+     * 
+     * This function is called when:
+     * 1. A new test result line is encountered (need to finalize the previous failed test)
+     * 2. A new codeunit result line is encountered (finalize any pending failed test)
+     * 
+     * The error message buffer contains both the error message and call stack sections
+     * that were accumulated during the COLLECTING_ERROR_MESSAGE and COLLECTING_CALLSTACK states.
+     */
     const finalizeFailedTest = (): void => {
         if (pendingFailedTest) {
             const errorMsg = errorMessageBuffer.trim() || 'Test failed';
@@ -157,10 +218,23 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
 
     /**
      * Processes terminal data with cursor positioning codes and returns complete lines.
+     * 
+     * This function handles the complexity of terminal output which can be wrapped across multiple
+     * lines when the terminal width is narrow. Business Central's test output uses ANSI cursor
+     * positioning codes (\\x1b[row;colH) to continue text on the same logical line.
+     * 
+     * Key behaviors:
+     * - Strips ANSI color codes and OSC sequences (shell integration markers)
+     * - Detects continuation lines by cursor positioning codes
+     * - Handles 1-3 character overlap between fragments (cursor positioning artifact)
+     * - Reconstructs complete logical lines from wrapped physical lines
+     * 
      * For wrapped terminals, text is split across multiple lines with cursor positioning.
-     * Lines starting with cursor positioning codes (\x1b[row;colH) are continuations.
      * Continuation fragments typically have 1-3 character overlap with the previous fragment
      * (showing what was already visible when cursor repositions).
+     * 
+     * @param data - Raw terminal output chunk which may contain partial lines, ANSI codes, etc.
+     * @returns Array of complete logical lines ready for parsing
      */
     const processTerminalData = (data: string): string[] => {
         // Strip OSC sequences (shell integration markers)
@@ -215,7 +289,18 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
     };
 
     /**
-     * Process a single complete line of output
+     * Process a single complete line of output from the terminal.
+     * 
+     * This function implements a state machine that tracks test execution progress:
+     * - IDLE: Waiting for test execution to start ("Connecting to...")
+     * - CODEUNIT_RUNNING: Processing test results as they complete
+     * - COLLECTING_ERROR_MESSAGE: Accumulating error message lines
+     * - COLLECTING_CALLSTACK: Accumulating call stack lines
+     * 
+     * The function updates the VS Code Test API in real-time as tests execute,
+     * providing immediate feedback to the user instead of waiting for XML results.
+     * 
+     * @param line - A single complete logical line of output (already processed for wrapping)
      */
     const processLine = (line: string): void => {
         // Strip any remaining ANSI codes

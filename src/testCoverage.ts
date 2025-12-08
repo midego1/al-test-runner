@@ -12,7 +12,12 @@ import { sendShowRelatedTestsEvent } from './telemetry';
 export let testCoverage: TestCoverage[] = [];
 let testCoverageLoaded: boolean = false;
 
-async function ensureTestCoverageLoaded(): Promise<void> {
+/**
+ * Ensures test coverage data is loaded from disk.
+ * Can be called multiple times safely - will only load once.
+ * Should be called early in extension activation to avoid delays in code lens provider.
+ */
+export async function ensureTestCoverageLoaded(): Promise<void> {
     if (!testCoverageLoaded) {
         try {
             await readTestCoverage();

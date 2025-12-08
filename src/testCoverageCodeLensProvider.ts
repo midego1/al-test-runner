@@ -18,10 +18,20 @@ export class TestCoverageCodeLensProvider implements vscode.CodeLensProvider {
             return this.codeLenses;
         }
 
+        // Check for cancellation before expensive operations
+        if (token.isCancellationRequested) {
+            return this.codeLenses;
+        }
+
         const objectName = getDocumentName(document);
 
         if (getCurrentWorkspaceConfig().enableCodeLens) {
             for (const methodRange of getMethodRangesFromDocument(document)) {
+                // Check for cancellation within loop
+                if (token.isCancellationRequested) {
+                    break;
+                }
+
                 const method: ALMethod = { objectName: objectName, methodName: methodRange.name };
                 const testCoverages = await getTestCoverageForMethod(method);
                 const testCount = testCoverages.length;
