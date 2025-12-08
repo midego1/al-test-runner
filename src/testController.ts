@@ -92,25 +92,12 @@ export async function discoverTestsInDocument(document: vscode.TextDocument) {
 
 export async function runTestHandler(request: vscode.TestRunRequest) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    clearMarkedTestItems(); // Clear any previously marked items before starting a new test run
-    outputWriter.clear(); // Clear output at start instead of end to preserve error messages
+    clearMarkedTestItems();
+    outputWriter.clear();
     const run = alTestController.createTestRun(request, timestamp);
     sendTestRunStartEvent(request);
 
-    // Enqueue tests based on what was selected
-    const itemsToEnqueue = request.include ? request.include : Array.from(alTestController.items).filter(item => !testItemIsPageScript(item[1])).map(item => item[1]);
-
-    itemsToEnqueue.forEach(testItem => {
-        if (testItem.parent) {
-            // This is an individual test function - enqueue it
-            run.enqueued(testItem);
-        } else {
-            // This is a codeunit - enqueue all its children
-            testItem.children.forEach(test => {
-                run.enqueued(test);
-            });
-        }
-    });
+    // Tests are enqueued by the output parser when BC is ready ("Connecting to...")
 
     try {
         let results: ALTestAssembly[];
@@ -173,6 +160,26 @@ export async function runTestHandler(request: vscode.TestRunRequest) {
         run.end();
         sendTestRunFinishedEvent(request);
     }
+}
+
+/**
+ * Enqueues tests when BC is ready to execute them.
+ * Called by the output parser when "Connecting to..." appears.
+ */
+export function enqueueTestsForRun(request: vscode.TestRunRequest, run: vscode.TestRun) {
+    const itemsToEnqueue = request.include ? request.include : Array.from(alTestController.items).filter(item => !testItemIsPageScript(item[1])).map(item => item[1]);
+
+    itemsToEnqueue.forEach(testItem => {
+        if (testItem.parent) {
+            // This is an individual test function - enqueue it
+            run.enqueued(testItem);
+        } else {
+            // This is a codeunit - enqueue all its children
+            testItem.children.forEach(test => {
+                run.enqueued(test);
+            });
+        }
+    });
 }
 
 function setResultsForTestItems(results: ALTestAssembly[], request: vscode.TestRunRequest, run: vscode.TestRun) {

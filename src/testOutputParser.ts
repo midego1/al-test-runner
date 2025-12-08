@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getALObjectFromPath } from './alFileHelper';
 import { alTestController, outputWriter } from './extension';
 import { testItemIsPageScript } from './pageScripting';
-import { getTestCodeunitsIncludedInRequest } from './testController';
+import { enqueueTestsForRun, getTestCodeunitsIncludedInRequest } from './testController';
 
 // Track which test items have been marked with results by the real-time parser
 const markedTestItems = new Set<vscode.TestItem>();
@@ -27,10 +27,11 @@ enum ParserState {
 export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunRequest): (data: string) => void {
     // Parser state
     let state: ParserState = ParserState.IDLE;
-    let currentCodeunit: vscode.TestItem | undefined; // Codeunit whose results are being reported
-    let runningCodeunit: vscode.TestItem | undefined; // Codeunit currently executing in BC
+    let currentCodeunit: vscode.TestItem | undefined;
+    let runningCodeunit: vscode.TestItem | undefined;
     let pendingFailedTest: vscode.TestItem | undefined;
     let errorMessageBuffer = '';
+    let testsEnqueued = false;
 
     /**
      * Determines which test functions within a codeunit should be marked as "started".
@@ -313,10 +314,15 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
             return;
         }
 
-        // STATE: IDLE - Waiting for test execution to start
+        // STATE: IDLE
         if (state === ParserState.IDLE) {
-            // Look for "Connecting to" - first codeunit starts executing
+            // "Connecting to..." means BC is ready - enqueue tests and start first codeunit
             if (/^Connecting to https?:\/\//.test(cleanLine)) {
+                if (!testsEnqueued) {
+                    enqueueTestsForRun(request, run);
+                    testsEnqueued = true;
+                }
+
                 const sortedCodeunits = getSortedCodeunits();
                 if (sortedCodeunits.length > 0) {
                     runningCodeunit = sortedCodeunits[0];
