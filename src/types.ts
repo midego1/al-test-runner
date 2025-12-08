@@ -28,6 +28,7 @@ export type ALTestAssembly = {
 		'run-date': string;
 		'test-framework': string;
 		name: string;
+		errors?: string;
 	};
 	collection: ALTestCollection[];
 };

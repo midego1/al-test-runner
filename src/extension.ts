@@ -230,7 +230,8 @@ function createErrorAssembly(assemblyName: string, errorMethod: string, errorNam
 			time: '0',
 			'run-time': new Date().toTimeString().split(' ')[0],
 			'run-date': new Date().toISOString().split('T')[0],
-			'test-framework': 'AL Test Runner'
+			'test-framework': 'AL Test Runner',
+			errors: '1'
 		},
 		collection: [{
 			'$': {

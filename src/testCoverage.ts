@@ -33,14 +33,27 @@ export async function ensureTestCoverageLoaded(): Promise<void> {
 }
 
 export async function buildTestCoverageFromTestItem(testItem: vscode.TestItem): Promise<void> {
-    return new Promise(async resolve => {
-        const testMethod: ALMethod = { objectName: testItem.parent!.label, methodName: testItem.label };
+    if (!testItem.parent) {
+        // This is a codeunit-level test item - build coverage for all children (test methods)
         const codeCoverage = await readCodeCoverage();
-        buildTestCoverage(codeCoverage, testMethod).then(newCoverage => {
-            writeTestCoverage(testMethod, newCoverage);
+        const coveragePromises: Promise<void>[] = [];
+
+        testItem.children.forEach(childTestItem => {
+            const testMethod: ALMethod = { objectName: testItem.label, methodName: childTestItem.label };
+            const promise = buildTestCoverage(codeCoverage, testMethod).then(newCoverage => {
+                return writeTestCoverage(testMethod, newCoverage);
+            });
+            coveragePromises.push(promise);
         });
-        resolve();
-    })
+
+        await Promise.all(coveragePromises);
+    } else {
+        // This is an individual test method
+        const testMethod: ALMethod = { objectName: testItem.parent.label, methodName: testItem.label };
+        const codeCoverage = await readCodeCoverage();
+        const newCoverage = await buildTestCoverage(codeCoverage, testMethod);
+        await writeTestCoverage(testMethod, newCoverage);
+    }
 }
 
 async function writeTestCoverage(testMethod: ALMethod, newCoverage: TestCoverage[]): Promise<void> {

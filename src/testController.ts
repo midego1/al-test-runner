@@ -142,7 +142,7 @@ export async function runTestHandler(request: vscode.TestRunRequest) {
                 }
 
                 results = await runTest(request, filename, lineNumber, undefined, undefined, run);
-                buildTestCoverageFromTestItem(testItem);
+                await buildTestCoverageFromTestItem(testItem);
             }
         }
 
@@ -180,10 +180,10 @@ function setResultsForTestItems(results: ALTestAssembly[], request: vscode.TestR
         return;
     }
 
-    // Check if this is an error result (publish error or timeout)
+    // Check if this is an error result by looking at the errors flag
     const isErrorResult = results.length === 1 &&
-                         (results[0].collection[0].test[0].$.method === 'PublishError' ||
-                          results[0].collection[0].test[0].$.method === 'TimeoutError');
+                         results[0].$.errors &&
+                         parseInt(results[0].$.errors) > 0;
 
     let testItems: vscode.TestItem[] = [];
     if (request.include) {
@@ -202,7 +202,7 @@ function setResultsForTestItems(results: ALTestAssembly[], request: vscode.TestR
     testItems!.forEach(testItem => {
         if (isErrorResult) {
             // Mark all tests as failed with the error message
-            const errorMessage = results[0].collection[0].test[0].failure[0].message;
+            const errorMessage = results[0].collection[0].test[0].failure[0].message[0];
             if (testItem.parent) {
                 run.failed(testItem, new vscode.TestMessage(errorMessage));
             } else {
@@ -585,6 +585,25 @@ async function outputTestResults(assemblies: ALTestAssembly[]): Promise<Boolean>
         let totalTime: number = 0;
 
         for (let assembly of assemblies) {
+            // Check if this is an error assembly
+            const isError = assembly.$.errors && parseInt(assembly.$.errors) > 0;
+
+            if (isError) {
+                // For error assemblies, output the error message directly
+                outputWriter.write('❌ ' + assembly.$.name);
+                if (assembly.collection[0] && assembly.collection[0].test[0]) {
+                    const errorTest = assembly.collection[0].test[0];
+                    if (errorTest.failure && errorTest.failure[0]) {
+                        outputWriter.write('\t' + errorTest.failure[0].message);
+                        if (errorTest.failure[0]['stack-trace']) {
+                            outputWriter.write('\t' + errorTest.failure[0]['stack-trace']);
+                        }
+                    }
+                }
+                noOfFailures += 1;
+                continue;
+            }
+
             noOfTests += parseInt(assembly.$.total);
             const assemblyTime = parseFloat(assembly.$.time);
             totalTime += assemblyTime;
