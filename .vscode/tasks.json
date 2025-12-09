@@ -55,6 +55,16 @@
 				"clear": false,
 				"close": true
 			}
+		},
+		{
+			"label": "Package VSIX",
+			"type": "shell",
+			"command": "vsce package",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			}
 		}
 	],
 	"inputs": [
