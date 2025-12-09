@@ -1,6 +1,6 @@
 # Change Log
 
-## 10.15.3
+## 10.16.0
 - Enhanced error handling for test execution failures
 - Real-time test progress updates in Test Results panel
 - New dedicated color setting for code coverage decorations (`coveredLinesColor`)
