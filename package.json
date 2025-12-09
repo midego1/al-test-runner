@@ -15,7 +15,7 @@
 	"icon": "semicolon128.jpg",
 	"version": "10.15.2",
 	"engines": {
-		"vscode": ">=1.88.0"
+		"vscode": ">=1.93.0"
 	},
 	"categories": [
 		"Testing"
@@ -253,6 +253,35 @@
 							}
 						}
 					},
+					"al-test-runner.coveredLinesColor": {
+						"type": "object",
+						"description": "Background color for covered lines in code coverage (rgba format)",
+						"scope": "resource",
+						"default": {
+							"red": 76,
+							"green": 175,
+							"blue": 80,
+							"alpha": 0.2
+						},
+						"properties": {
+							"red": {
+								"type": "number",
+								"description": "Red element of the color (0-255)"
+							},
+							"green": {
+								"type": "number",
+								"description": "Green element of the color (0-255)"
+							},
+							"blue": {
+								"type": "number",
+								"description": "Blue element of the color (0-255)"
+							},
+							"alpha": {
+								"type": "number",
+								"description": "Alpha (between 0 for transparent and 1 for opaque)"
+							}
+						}
+					},
 					"al-test-runner.publishBeforeTest": {
 						"enum": [
 							"None",
@@ -429,7 +458,7 @@
 		"@types/mocha": "^5.2.6",
 		"@types/node": "^10.17.60",
 		"@types/sinon": "^7.5.2",
-		"@types/vscode": "^1.88.0",
+		"@types/vscode": "^1.93.0",
 		"@vscode/test-electron": "^2.3.9",
 		"glob": "^7.1.7",
 		"mocha": "^10.8.2",
