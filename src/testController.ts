@@ -209,7 +209,7 @@ function setResultsForTestItems(results: ALTestAssembly[], request: vscode.TestR
     testItems!.forEach(testItem => {
         if (isErrorResult) {
             // Mark all tests as failed with the error message
-            const errorMessage = results[0].collection[0].test[0].failure[0].message[0];
+            const errorMessage = results[0].collection[0].test[0].failure[0].message;
             if (testItem.parent) {
                 run.failed(testItem, new vscode.TestMessage(errorMessage));
             } else {
@@ -418,7 +418,9 @@ function setResultForTestItem(result: ALTestResult, testItem: vscode.TestItem, r
         run.passed(testItem);
     }
     else {
-        run.failed(testItem, new vscode.TestMessage(`${result.failure[0].message[0]}\n\n${result.failure[0]["stack-trace"][0]}`));
+        const message = result.failure[0].message;
+        const stackTrace = result.failure[0]['stack-trace'];
+        run.failed(testItem, new vscode.TestMessage(`${message}\n\n${stackTrace}`));
     }
 }
 
@@ -602,8 +604,9 @@ async function outputTestResults(assemblies: ALTestAssembly[]): Promise<Boolean>
                     const errorTest = assembly.collection[0].test[0];
                     if (errorTest.failure && errorTest.failure[0]) {
                         outputWriter.write('\t' + errorTest.failure[0].message);
-                        if (errorTest.failure[0]['stack-trace']) {
-                            outputWriter.write('\t' + errorTest.failure[0]['stack-trace']);
+                        const stackTrace = errorTest.failure[0]['stack-trace'];
+                        if (stackTrace) {
+                            outputWriter.write('\t' + stackTrace);
                         }
                     }
                 }

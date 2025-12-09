@@ -265,6 +265,22 @@ async function readTestResults(uri: vscode.Uri): Promise<types.ALTestAssembly[]>
 		const resultObj = await xmlParser.parseStringPromise(resultXml);
 		const assemblies: types.ALTestAssembly[] = resultObj.assemblies.assembly;
 
+		// Convert xml2js arrays to strings for failure messages and stack traces
+		assemblies.forEach(assembly => {
+			assembly.collection?.forEach(collection => {
+				collection.test?.forEach(test => {
+					if (test.failure && test.failure[0]) {
+						if (Array.isArray(test.failure[0].message)) {
+							test.failure[0].message = test.failure[0].message[0] || '';
+						}
+						if (Array.isArray(test.failure[0]['stack-trace'])) {
+							test.failure[0]['stack-trace'] = test.failure[0]['stack-trace'][0] || '';
+						}
+					}
+				});
+			});
+		});
+
 		resolve(assemblies);
 	});
 }
@@ -340,6 +356,18 @@ function updateDecorations() {
 		const collection = resultObj.assembly.collection;
 		const tests = collection.shift()!.test as Array<types.ALTestResult>;
 
+		// Convert xml2js arrays to strings for failure messages and stack traces
+		tests.forEach(test => {
+			if (test.failure && test.failure[0]) {
+				if (Array.isArray(test.failure[0].message)) {
+					test.failure[0].message = test.failure[0].message[0] || '';
+				}
+				if (Array.isArray(test.failure[0]['stack-trace'])) {
+					test.failure[0]['stack-trace'] = test.failure[0]['stack-trace'][0] || '';
+				}
+			}
+		});
+
 		tests.forEach(test => {
 			const testMethod = testMethodRanges.find(element => element.name === test.$.method);
 			if ((null !== testMethod) && (undefined !== testMethod)) {
@@ -355,12 +383,14 @@ function updateDecorations() {
 						passingTests.push(decoration);
 						break;
 					case 'Fail':
-						const hoverMessage: string = test.failure[0].message + "\n\n" + test.failure[0]["stack-trace"];
+						const message = test.failure[0].message;
+						const stackTrace = test.failure[0]['stack-trace'];
+						const hoverMessage: string = message + "\n\n" + stackTrace;
 						decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: hoverMessage };
 						failingTests.push(decoration);
 
 						if (config.highlightFailingLine) {
-							const failingLineRange = getRangeOfFailingLineFromCallstack(test.failure[0]["stack-trace"][0], test.$.method, activeEditor!.document);
+							const failingLineRange = getRangeOfFailingLineFromCallstack(stackTrace, test.$.method, activeEditor!.document);
 							if (failingLineRange) {
 								const decoration: vscode.DecorationOptions = { range: failingLineRange, hoverMessage: hoverMessage };
 								failingLines.push(decoration);
