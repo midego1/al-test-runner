@@ -6,7 +6,7 @@ import { getALTestRunnerConfig, getALTestRunnerPath, getCurrentWorkspaceConfig, 
 import { failedToPublishMessage } from './constants';
 import { getALTestRunnerTerminal } from './extension';
 import { awaitFileExistence } from './file';
-import { sendDebugEvent, sendFailedToPublishError, sendNoTestFolderNameError } from './telemetry';
+import { sendALCommandPublishError, sendDebugEvent, sendFailedToPublishError } from './telemetry';
 import { PublishResult, PublishType } from "./types";
 
 let shouldPublishApp: Boolean = false;
@@ -26,25 +26,31 @@ export function publishApp(publishType: PublishType): Promise<PublishResult> {
 
         if (getCurrentWorkspaceConfig().enablePublishingFromPowerShell) {
             sendDebugEvent('publishApp-publishFromPowerShell');
-            
+
             shouldPublishApp = true;
             if (existsSync(getPublishCompletionPath())) {
                 unlinkSync(getPublishCompletionPath());
             }
 
-            await vscode.commands.executeCommand('al.package');
-            const resultExists = await awaitFileExistence(getPublishCompletionPath(), getCurrentWorkspaceConfig().publishTimeout);
-            if (resultExists) {
-                const content = readFileSync(getPublishCompletionPath(), { encoding: 'utf-8' })
-                success = content.trim() === '1';
-                if (!success) {
-                    message = content;
-                    sendFailedToPublishError(content);
-                }
-            }
-            else {
+            const result = await vscode.commands.executeCommand('al.package') as { success: boolean; error?: string } | undefined;
+            if (result && result.success === false) {
                 success = false;
-                sendFailedToPublishError();
+                message = result.error || failedToPublishMessage;
+                sendALCommandPublishError(message);
+            } else {
+                const resultExists = await awaitFileExistence(getPublishCompletionPath(), getCurrentWorkspaceConfig().publishTimeout);
+                if (resultExists) {
+                    const content = readFileSync(getPublishCompletionPath(), { encoding: 'utf-8' });
+                    success = content.trim() === '1';
+                    if (!success) {
+                        message = content;
+                        sendFailedToPublishError(content);
+                    }
+                }
+                else {
+                    success = false;
+                    sendFailedToPublishError();
+                }
             }
         }
         else {
@@ -58,8 +64,14 @@ export function publishApp(publishType: PublishType): Promise<PublishResult> {
                     break;
             }
 
-            await vscode.commands.executeCommand(command);
-            success = true;
+            const result = await vscode.commands.executeCommand(command) as { success: boolean; error?: string } | undefined;
+            if (result && result.success === false) {
+                success = false;
+                message = result.error || failedToPublishMessage;
+                sendALCommandPublishError(message);
+            } else {
+                success = true;
+            }
         }
 
         if (closeEditor) {

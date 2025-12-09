@@ -1,5 +1,13 @@
 # Change Log
 
+## 10.15.3
+- Enhanced error handling for test execution failures
+- Real-time test progress updates in Test Results panel
+- New dedicated color setting for code coverage decorations (`coveredLinesColor`)
+- Improved code coverage error handling with better warning messages
+- Updated minimum VS Code version to 1.93.0
+- Better error reporting when code coverage configuration is missing
+
 ## 0.10.1
 - Do not require restart of tests after selecting launch configuration to use, [issue 113](https://github.com/jimmymcp/al-test-runner/issues/113)
 - Fix issue where test codeunits not recognised when using namespaces, [issue 115](https://github.com/jimmymcp/al-test-runner/issues/115)
@@ -227,7 +235,7 @@
 
 ## 0.1.15
 - Set PowerShell location before running tests (to work correctly with multi-root workspaces)
-- Optionally call AL command to publish / rapid publish app before running tests 
+- Optionally call AL command to publish / rapid publish app before running tests
 
 ## 0.1.14
 - Sanitize filenames (for test codeunits that have illegal file name chars) - thanks Leon

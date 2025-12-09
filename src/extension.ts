@@ -4,8 +4,8 @@ import * as xml2js from 'xml2js';
 import * as types from './types';
 import { CodelensProvider } from './codeLensProvider';
 import { updateCodeCoverageDecoration, createCodeCoverageStatusBarItem } from './coverage';
-import { documentIsTestCodeunit, getALFilesInWorkspace, getDocumentIdAndName, getTestFolderPath, getTestMethodRangesFromDocument } from './alFileHelper';
-import { getALTestRunnerPath, getCurrentWorkspaceConfig, getDebugConfigurationsFromLaunchJson, getLaunchJsonPath } from './config';
+import { documentIsTestCodeunit, getALFilesInWorkspace, getDocumentIdAndName, getTestMethodRangesFromDocument } from './alFileHelper';
+import { getALTestRunnerPath, getCurrentWorkspaceConfig, getDebugConfigurationsFromLaunchJson, getLaunchJsonPath, getTestFolderFromConfig, getWorkspaceFolder } from './config';
 import { getOutputWriter, OutputWriter } from './output';
 import { createTestController, discoverTests, discoverTestsInDocument } from './testController';
 import { onChangeAppFile, publishApp } from './publish';
@@ -18,6 +18,8 @@ import { CodeCoverageCodeLensProvider } from './codeCoverageCodeLensProvider';
 import { registerCommands } from './commands';
 import { createHEADFileWatcherForTestWorkspaceFolder } from './git';
 import { createPerformanceStatusBarItem } from './performance';
+import { executeWithShellIntegration } from './terminalExecutor';
+import { ensureTestCoverageLoaded } from './testCoverage';
 
 let terminal: vscode.Terminal;
 export let activeEditor = vscode.window.activeTextEditor;
@@ -26,20 +28,22 @@ const config = vscode.workspace.getConfiguration('al-test-runner');
 const passingTestColor = 'rgba(' + config.passingTestsColor.red + ',' + config.passingTestsColor.green + ',' + config.passingTestsColor.blue + ',' + config.passingTestsColor.alpha + ')';
 const failingTestColor = 'rgba(' + config.failingTestsColor.red + ',' + config.failingTestsColor.green + ',' + config.failingTestsColor.blue + ',' + config.failingTestsColor.alpha + ')';
 const untestedTestColor = 'rgba(' + config.untestedTestsColor.red + ',' + config.untestedTestsColor.green + ',' + config.untestedTestsColor.blue + ',' + config.untestedTestsColor.alpha + ')';
+const coveredLinesColor = 'rgba(' + config.coveredLinesColor.red + ',' + config.coveredLinesColor.green + ',' + config.coveredLinesColor.blue + ',' + config.coveredLinesColor.alpha + ')';;
 export const outputWriter: OutputWriter = getOutputWriter(vscode.workspace.getConfiguration('al-test-runner').testOutputLocation);
 export const channelWriter: OutputWriter = getOutputWriter(types.OutputType.Channel);
 
-const testFolderPath = getTestFolderPath();
-if (testFolderPath) {
-	const testAppsPath = join(testFolderPath, '*.app');
-	const appFileWatcher = vscode.workspace.createFileSystemWatcher(testAppsPath, false, false, true);
-	appFileWatcher.onDidChange(e => {
-		onChangeAppFile(e);
-	});
+function getTestFolderPath(): string | undefined {
+	const config = getCurrentWorkspaceConfig(false);
+	return getTestFolderFromConfig(config) || getWorkspaceFolder();
 }
 
+export const codeCoverageDecorationType = vscode.window.createTextEditorDecorationType({
+	isWholeLine: true,
+	overviewRulerColor: coveredLinesColor,
+	backgroundColor: coveredLinesColor
+});
 
-export const passingTestDecorationType = vscode.window.createTextEditorDecorationType({
+const passingTestDecorationType = vscode.window.createTextEditorDecorationType({
 	backgroundColor: passingTestColor
 });
 
@@ -81,15 +85,19 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(createCodeCoverageStatusBarItem());
 	context.subscriptions.push(createPerformanceStatusBarItem());
 
+	// Pre-load test coverage data asynchronously to avoid delays in code lens provider
+	ensureTestCoverageLoaded().catch(err => {
+		// Silently fail - ensureTestCoverageLoaded handles error display internally
+		console.log('Test coverage pre-load completed (may have been empty or failed)');
+	});
+
 	vscode.window.onDidChangeActiveTextEditor(editor => {
 		activeEditor = editor;
 		if (editor) {
 			if (documentIsTestCodeunit(activeEditor!.document)) {
 				triggerUpdateDecorations();
 			}
-			else {
-				updateCodeCoverageDecoration();
-			}
+			updateCodeCoverageDecoration();
 		}
 	}, null, context.subscriptions);
 
@@ -142,8 +150,13 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 
 		const result = await publishApp(publishType);
 		if (!result.success) {
-			const results: types.ALTestAssembly[] = [];
-			resolve(results);
+			const errorResult = createErrorAssembly(
+				'AL Test Runner Publish Error',
+				'PublishError',
+				'Publish Failed',
+				result.message || 'Failed to publish the application. Tests cannot run without a successful publish.'
+			);
+			resolve([errorResult]);
 			return;
 		}
 
@@ -166,22 +179,83 @@ export async function invokeTestRunner(command: string, options: types.invokeTes
 		}
 
 		terminal = getALTestRunnerTerminal(getTerminalName());
-		terminal.sendText(' ');
-		terminal.show(true);
-		terminal.sendText('cd "' + getTestFolderPath() + '"');
-		invokeCommand(config.preTestCommand);
-		terminal.sendText(command);
-		invokeCommand(config.postTestCommand);
 
-		awaitFileExistence(getLastResultPath(), 0).then(async resultsAvailable => {
-			if (resultsAvailable) {
-				const results: types.ALTestAssembly[] = await readTestResults(vscode.Uri.file(getLastResultPath()));
-				resolve(results);
+		// Execute command using shell integration with real-time output parsing
+		try {
+			await executeWithShellIntegration(terminal, command, {
+				workingDirectory: getTestFolderPath(),
+				preCommand: config.preTestCommand,
+				postCommand: config.postTestCommand,
+				onOutput: options.onOutput,
+				showTerminal: true // Show terminal initially so users can see PowerShell setup and publishing
+				// Focus will switch to Test Results output when first test starts (handled by testOutputParser)
+			});
 
-				triggerUpdateDecorations();
-			}
-		});
+			// Wait for command to complete and results file to be created
+			awaitFileExistence(getLastResultPath(), 0).then(async resultsAvailable => {
+				if (resultsAvailable) {
+					const results: types.ALTestAssembly[] = await readTestResults(vscode.Uri.file(getLastResultPath()));
+					resolve(results);
+					triggerUpdateDecorations();
+				} else {
+					const errorResult = createErrorAssembly(
+						'AL Test Runner Timeout',
+						'TimeoutError',
+						'Test Execution Timeout',
+						'Test results file was not created. Check the terminal output for errors.'
+					);
+					resolve([errorResult]);
+				}
+			});
+		} catch (error) {
+			const errorResult = createErrorAssembly(
+				'AL Test Runner Execution Error',
+				'ExecutionError',
+				'Command Execution Failed',
+				error instanceof Error ? error.message : String(error)
+			);
+			resolve([errorResult]);
+		}
 	});
+}
+
+function createErrorAssembly(assemblyName: string, errorMethod: string, errorName: string, errorMessage: string): types.ALTestAssembly {
+	return {
+		'$': {
+			name: assemblyName,
+			total: '0',
+			passed: '0',
+			failed: '1',
+			skipped: '0',
+			time: '0',
+			'run-time': new Date().toTimeString().split(' ')[0],
+			'run-date': new Date().toISOString().split('T')[0],
+			'test-framework': 'AL Test Runner',
+			errors: '1'
+		},
+		collection: [{
+			'$': {
+				name: 'Error Collection',
+				total: '1',
+				passed: '0',
+				failed: '1',
+				skipped: '0',
+				time: '0'
+			},
+			test: [{
+				'$': {
+					name: errorName,
+					method: errorMethod,
+					time: '0',
+					result: 'Fail'
+				},
+				failure: [{
+					message: errorMessage,
+					'stack-trace': ''
+				}]
+			}]
+		}]
+	};
 }
 
 async function readTestResults(uri: vscode.Uri): Promise<types.ALTestAssembly[]> {
