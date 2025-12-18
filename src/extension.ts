@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { readFileSync, existsSync, unlinkSync } from 'fs';
 import * as xml2js from 'xml2js';
 import * as types from './types';
+import { safeParseJson } from './jsonHelper';
 import { CodelensProvider } from './codeLensProvider';
 import { updateCodeCoverageDecoration, createCodeCoverageStatusBarItem } from './coverage';
 import { documentIsTestCodeunit, getALFilesInWorkspace, getDocumentIdAndName, getTestMethodRangesFromDocument } from './alFileHelper';
@@ -519,16 +520,23 @@ export function getCodeunitIdFromAssemblyName(assemblyName: string): number {
 export function getLaunchJson() {
 	const launchPath = getLaunchJsonPath();
 	const data = readFileSync(launchPath, { encoding: 'utf-8' });
-	return JSON.parse(data);
+	const parsed = safeParseJson(data, launchPath);
+	if (!parsed) {
+		vscode.window.showErrorMessage(`Failed to parse launch.json. Please check ${launchPath} for syntax errors.`);
+		return { configurations: [] };
+	}
+	return parsed;
 }
 
 export function getAppJsonKey(keyName: string) {
 	sendDebugEvent('getAppJsonKey-start', { keyName: keyName });
 	const appJsonPath = getTestFolderPath() + '\\app.json';
 	const data = readFileSync(appJsonPath, { encoding: 'utf-8' });
-	const appJson = JSON.parse(data.charCodeAt(0) === 0xfeff
-		? data.slice(1) // Remove BOM
-		: data);
+	const appJson = safeParseJson(data, appJsonPath);
+	if (!appJson) {
+		vscode.window.showErrorMessage(`Failed to parse app.json. Please check ${appJsonPath} for syntax errors.`);
+		return undefined;
+	}
 
 	sendDebugEvent('getAppJsonKey-end', { keyName: keyName, keyValue: appJson[keyName] });
 	return appJson[keyName];
