@@ -39,21 +39,12 @@ class OutputChannel implements OutputWriter {
     flushWarnings(): void {
         if (this.warnings.length > 0) {
             this.write('');
-            this.write('⚠️  Warnings:');
+            this.write('⚠️  Warnings (details can be found in the terminal):');
             this.write('─'.repeat(80));
             this.warnings.forEach(warning => {
-                this.write(`⚠️  ${warning}`);
-            });
-
-            const firstWarning = this.warnings[0];
-            const message = this.warnings.length === 1
-                ? firstWarning
-                : `${this.warnings.length} warnings occurred (see output for details)`;
-
-            vscode.window.showWarningMessage(`AL Test Runner: ${message}`, 'Show Output').then(selection => {
-                if (selection === 'Show Output') {
-                    this.show();
-                }
+                // Remove existing ⚠️ prefix and surrounding blanks to avoid duplication
+                const cleanWarning = warning.replace(/^\s*⚠️\s*/, '');
+                this.write(`⚠️  ${cleanWarning}`);
             });
 
             this.warnings = [];
@@ -89,21 +80,12 @@ class OutputEditor implements OutputWriter {
     flushWarnings(): void {
         if (this.warnings.length > 0) {
             this.write('');
-            this.write('⚠️  Warnings:');
+            this.write('⚠️  Warnings (details can be found in the terminal):');
             this.write('─'.repeat(80));
             this.warnings.forEach(warning => {
-                this.write(`⚠️  ${warning}`);
-            });
-
-            const firstWarning = this.warnings[0];
-            const message = this.warnings.length === 1
-                ? firstWarning
-                : `${this.warnings.length} warnings occurred (see output for details)`;
-
-            vscode.window.showWarningMessage(`AL Test Runner: ${message}`, 'Show Output').then(selection => {
-                if (selection === 'Show Output') {
-                    this.show();
-                }
+                // Remove existing ⚠️ prefix and surrounding blanks to avoid duplication
+                const cleanWarning = warning.replace(/^\s*⚠️\s*/, '');
+                this.write(`⚠️  ${cleanWarning}`);
             });
 
             this.warnings = [];

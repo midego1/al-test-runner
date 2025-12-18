@@ -307,10 +307,42 @@ export function createOutputParser(run: vscode.TestRun, request: vscode.TestRunR
         // Strip any remaining ANSI codes
         const cleanLine = line.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '');
 
-        // Check for PowerShell warnings
+        // Check for PowerShell warnings and errors
         const warningMatch = cleanLine.match(/AL Test Runner WARNING: (.+)/);
         if (warningMatch) {
             outputWriter.writeError(warningMatch[1]);
+            return;
+        }
+
+        // Check for Test Runner Service errors (SOAP faults, performance profile, code coverage)
+        if (cleanLine.match(/(Test Runner Service Error|SOAP Service Error|Could not download|Performance profile download failed|Service returned an error)/)) {
+            outputWriter.writeError(cleanLine);
+            return;
+        }
+
+        // Capture helpful error context lines (explanations that follow error messages)
+        if (cleanLine.match(/^\s*(This usually means|To fix this):/) ||
+            cleanLine.match(/^\s*\d+\.\s+/) || // Numbered list items
+            cleanLine.match(/^\s*•\s+/)) { // Bullet points
+            outputWriter.writeError(cleanLine);
+            return;
+        }
+
+        // Check for general PowerShell execution errors
+        if (cleanLine.match(/^Error during test execution:/)) {
+            outputWriter.writeError(cleanLine);
+            return;
+        }
+
+        // Check for stack traces (following error messages)
+        if (cleanLine.match(/^Stack trace:/)) {
+            outputWriter.writeError(cleanLine);
+            return;
+        }
+
+        // Check for SSL/transport connection errors
+        if (cleanLine.match(/Are you trying to connect to a SSL port with/)) {
+            outputWriter.writeError(cleanLine);
             return;
         }
 
