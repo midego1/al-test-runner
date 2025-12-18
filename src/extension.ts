@@ -379,7 +379,8 @@ function updateDecorations() {
 
 				switch (test.$.result) {
 					case 'Pass':
-						decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: 'Test passing 👍' };
+						const testTime = parseFloat(test.$.time);
+						decoration = { range: new vscode.Range(startPos, endPos), hoverMessage: new vscode.MarkdownString('Test passing 👍' + '\n\nExecution time: ' + testTime.toFixed(2) + 's')  };
 						passingTests.push(decoration);
 						break;
 					case 'Fail':
