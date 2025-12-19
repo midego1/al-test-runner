@@ -56,7 +56,6 @@ export type ALTestResult = {
 		message: string;
 		'stack-trace': string
 	}]
-	ranAt?: string;
 };
 
 export type ALMethodRange = {
