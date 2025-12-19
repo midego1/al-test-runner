@@ -4,6 +4,7 @@ import { sendDebugEvent } from './telemetry';
 import * as types from './types';
 import { activeEditor } from './extension';
 import { invokePowerShellCommand } from './powershell';
+import { safeParseJson } from './jsonHelper';
 
 export function getALTestRunnerPath(): string {
     const testFolderPath = getTestFolderFromConfig(getCurrentWorkspaceConfig(false)) || getWorkspaceFolder();
@@ -28,7 +29,11 @@ export function getALTestRunnerConfig() {
         data = readFileSync(alTestRunnerConfigPath, { encoding: 'utf-8' });
     }
 
-    let alTestRunnerConfig = JSON.parse(data);
+    let alTestRunnerConfig = safeParseJson(data, alTestRunnerConfigPath);
+    if (!alTestRunnerConfig) {
+        vscode.window.showErrorMessage(`Failed to parse AL Test Runner config file. Please check ${alTestRunnerConfigPath} for syntax errors and try again.`);
+        throw new Error(`Invalid JSON in AL Test Runner config file: ${alTestRunnerConfigPath}`);
+    }
     return alTestRunnerConfig as types.ALTestRunnerConfig;
 }
 
@@ -174,7 +179,14 @@ export async function getALTestRunnerLaunchConfig(): Promise<any> {
             }
         }
 
-        resolve(JSON.parse(getLaunchConfiguration(launchConfig)));
+        const configString = getLaunchConfiguration(launchConfig);
+        const parsedConfig = safeParseJson(configString, 'launch.json configuration');
+        if (!parsedConfig) {
+            vscode.window.showErrorMessage('Failed to parse launch configuration. Please check your launch.json file for syntax errors.');
+            resolve({});
+            return;
+        }
+        resolve(parsedConfig);
     })
 }
 

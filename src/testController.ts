@@ -472,8 +472,12 @@ export async function getTestItemFromFileNameAndSelection(filename?: string, sel
 
             if (testMethodRanges.length > 0) {
                 const testMethod = testMethodRanges.pop();
-                const testItem = codeunitItem!.children.get(testMethod!.name);
-                resolve(testItem);
+                if (codeunitItem) {
+                    const testItem = codeunitItem.children.get(testMethod!.name);
+                    resolve(testItem);
+                } else {
+                    resolve(undefined);
+                }
             }
         }
         else {
@@ -584,6 +588,7 @@ export function getTestItemForMethod(method: ALMethod): vscode.TestItem | undefi
     if (testCodeunit) {
         return testCodeunit.children.get(method.methodName);
     }
+    return undefined;
 }
 
 async function outputTestResults(assemblies: ALTestAssembly[]): Promise<Boolean> {

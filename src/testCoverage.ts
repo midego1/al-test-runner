@@ -8,6 +8,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { writeTable } from './output';
 import { getTestItemForMethod, runTestHandler } from './testController';
 import { sendShowRelatedTestsEvent } from './telemetry';
+import { safeParseJson } from './jsonHelper';
 
 export let testCoverage: TestCoverage[] = [];
 let testCoverageLoaded: boolean = false;
@@ -87,7 +88,13 @@ export async function readTestCoverage(): Promise<void> {
         const path = await getTestCoveragePath();
         if (existsSync(path)) {
             const text = readFileSync(path, { encoding: 'utf-8' });
-            testCoverage = JSON.parse(text);
+            const parsed = safeParseJson(text, path);
+            if (parsed) {
+                testCoverage = parsed;
+            } else {
+                vscode.window.showWarningMessage(`Failed to parse test coverage file: ${path}`);
+                testCoverage = [];
+            }
         }
         else {
             testCoverage = [];

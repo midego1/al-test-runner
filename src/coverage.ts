@@ -6,6 +6,7 @@ import { activeEditor, codeCoverageDecorationType, outputWriter } from './extens
 import { join, basename, dirname } from 'path';
 import { getALTestRunnerConfig, getCurrentWorkspaceConfig } from './config';
 import { testItemIsPageScript } from './pageScripting';
+import { safeParseJson } from './jsonHelper';
 
 let codeCoverageStatusBarItem: vscode.StatusBarItem;
 let codeCoverageDisplay: CodeCoverageDisplay = CodeCoverageDisplay.Off;
@@ -48,7 +49,13 @@ export function readCodeCoverage(codeCoverageDisplay?: CodeCoverageDisplay, test
             }
             if (codeCoveragePath) {
                 if (existsSync(codeCoveragePath)) {
-                    codeCoverage = JSON.parse(readFileSync(codeCoveragePath, { encoding: 'utf-8' }));
+                    const data = readFileSync(codeCoveragePath, { encoding: 'utf-8' });
+                    const parsed = safeParseJson(data, codeCoveragePath);
+                    if (parsed) {
+                        codeCoverage = parsed;
+                    } else {
+                        outputWriter.writeError(`Failed to parse code coverage file: ${codeCoveragePath}`);
+                    }
                 }
             }
         } catch (error) {
