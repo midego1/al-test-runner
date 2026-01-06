@@ -7,8 +7,8 @@ import { getALTestRunnerTerminal } from './extension';
 import { sendALCommandPublishError, sendDebugEvent, sendFailedToPublishError } from './telemetry';
 import { PublishResult, PublishType } from "./types";
 import { invokePwshCommand } from './powershell';
-const glob = require('glob');
-const fs = require('fs');
+import * as glob from 'glob';
+import * as fs from 'fs';
 
 export function publishApp(publishType: PublishType): Promise<PublishResult> {
     return new Promise(async resolve => {
@@ -40,7 +40,9 @@ export function publishApp(publishType: PublishType): Promise<PublishResult> {
                     message = 'Could not find test folder path';
                     sendFailedToPublishError(message);
                 } else {
-                    const appFiles = glob.sync(join(testFolderPath, '*.app'), { ignore: '**/*.dep.app' });
+                    const appFiles = glob
+                        .sync(join(testFolderPath, '*.app'))
+                        .filter((file: string) => !file.endsWith('.dep.app'));
 
                     if (appFiles.length === 0) {
                         success = false;
